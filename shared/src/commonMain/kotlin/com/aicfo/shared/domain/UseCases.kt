@@ -9,6 +9,7 @@ import com.aicfo.shared.presentation.AccountRowModel
 import com.aicfo.shared.presentation.AccountsModel
 import com.aicfo.shared.presentation.DetailModel
 import com.aicfo.shared.presentation.FactModel
+import com.aicfo.shared.presentation.HomeAmountModel
 import com.aicfo.shared.presentation.HomeModel
 import com.aicfo.shared.presentation.HomeMoveModel
 import com.aicfo.shared.presentation.MoveRowModel
@@ -36,11 +37,25 @@ internal object HomeUseCase {
             subtitle = MayaStub.HOME_SUBTITLE,
             initials = MayaStub.profile.initials,
             showNotificationDot = notificationsOn,
-            pulse = MayaStub.PULSE,
+            savingsLabel = MayaStub.SAVINGS_LABEL,
+            savingsAmount = MayaStub.SAVINGS_AMOUNT,
+            savingsDelta = MayaStub.SAVINGS_DELTA,
+            savingsUp = true,
+            netWorthLabel = MayaStub.NET_WORTH_LABEL,
+            netWorthAmount = MayaStub.NET_WORTH_AMOUNT,
+            netWorthDelta = MayaStub.NET_WORTH_DELTA,
+            netWorthUp = true,
+            runway = MayaStub.RUNWAY,
+            hope = hopeLine(resolved),
             sectionTitle = MayaStub.SECTION_TITLE,
             seeAllLabel = "See all",
             emptyTitle = "You're clear this month",
             emptyBody = "Every open move is done or skipped. A new list lands at the start of next month.",
+            snapshot = listOf(
+                HomeAmountModel(MayaStub.NEEDS_LABEL, MayaStub.NEEDS_AMOUNT, MayaStub.NEEDS_CAPTION, Tone.DEFAULT),
+                HomeAmountModel(MayaStub.WANTS_LABEL, MayaStub.WANTS_AMOUNT, MayaStub.WANTS_CAPTION, Tone.DEFAULT),
+                HomeAmountModel(MayaStub.SAVE_LABEL, MayaStub.SAVE_AMOUNT, MayaStub.SAVE_CAPTION, Tone.POSITIVE),
+            ),
             moves = todo.map { row ->
                 HomeMoveModel(
                     id = row.move.id,
@@ -52,6 +67,22 @@ internal object HomeUseCase {
                 )
             },
         )
+    }
+
+    /**
+     * Hope is the open Gympass year, or a calm confirmation once it is cancelled.
+     * Keeping the subscription hides the line so Home does not scold.
+     */
+    private fun hopeLine(resolved: List<ResolvedMove>): String {
+        val gympass = resolved.firstOrNull { it.move.id == "gympass" } ?: return ""
+        val yearly = MoneyMath.yearlyFromMonthlyCents(47_00L) / 100L
+        return when (gympass.status) {
+            MoveStatusCode.TODO ->
+                "If unused Gympass stayed cancelled this year, you'd keep ~\$$yearly more"
+            MoveStatusCode.DONE ->
+                "Gympass stays cancelled — about \$$yearly stays with you this year."
+            else -> ""
+        }
     }
 }
 

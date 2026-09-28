@@ -14,8 +14,9 @@ import com.aicfo.shared.presentation.Tone
 
 /**
  * October 2026 coach plan for Maya Chen, freelance product designer in Austin.
- * Figures on the cards are the authored plan (they match the v1.1 look pack).
- * Gympass yearly savings are also checked by [com.aicfo.shared.domain.MoneyMath].
+ * Figures on the cards are the authored plan (they match the look pack).
+ * Home v1.2 wealth and snapshot figures are the locked board, not a sum of the
+ * linked balances. Gympass yearly savings are also checked by [com.aicfo.shared.domain.MoneyMath].
  */
 internal object MayaStub {
     val profile: Profile = Profile(
@@ -28,7 +29,22 @@ internal object MayaStub {
     )
 
     const val HOME_SUBTITLE: String = "Tuesday · Austin"
-    const val PULSE: String = "47 days runway · 5 moves this month"
+    const val SAVINGS_LABEL: String = "Savings"
+    const val SAVINGS_AMOUNT: String = "\$8,420"
+    const val SAVINGS_DELTA: String = "↑ \$340 this month"
+    const val NET_WORTH_LABEL: String = "Net worth"
+    const val NET_WORTH_AMOUNT: String = "\$42.1k"
+    const val NET_WORTH_DELTA: String = "↑ 2.1% MoM"
+    const val RUNWAY: String = "47 days runway · quietly building"
+    const val NEEDS_LABEL: String = "Needs"
+    const val NEEDS_AMOUNT: String = "\$2,840"
+    const val NEEDS_CAPTION: String = "rent, groceries..."
+    const val WANTS_LABEL: String = "Wants"
+    const val WANTS_AMOUNT: String = "\$620"
+    const val WANTS_CAPTION: String = "discretionary"
+    const val SAVE_LABEL: String = "To save"
+    const val SAVE_AMOUNT: String = "\$890"
+    const val SAVE_CAPTION: String = "left this month"
     const val MOVES_SUBTITLE: String = "Ranked actions for Oct 2026 · Maya, Austin"
     const val SUMMARY_PILL: String = "October · 5 moves · ~\$265/mo upside"
     const val SECTION_TITLE: String = "This month's moves"
@@ -101,7 +117,7 @@ internal object MayaStub {
             tone = Tone.POSITIVE,
             priority = Priority.P1,
             status = MoveStatus.TODO,
-            homeBody = "Last check-in was 86 days ago. You're paying for nothing.",
+            homeBody = "Last check-in 86 days ago — paying for nothing.",
             homeCta = "Cancel · save \$47/mo",
             icon = "CLOCK",
             detail = detail(
@@ -137,7 +153,7 @@ internal object MayaStub {
             tone = Tone.POSITIVE,
             priority = Priority.P1,
             status = MoveStatus.TODO,
-            homeBody = "24.9% APR is eating ~\$62/mo in interest. Kill it first.",
+            homeBody = "24.9% APR eating ~\$62/mo. Kill it first.",
             homeCta = "Schedule extra payment",
             icon = "CARD",
             detail = detail(
@@ -169,7 +185,7 @@ internal object MayaStub {
             tone = Tone.POSITIVE,
             priority = Priority.P2,
             status = MoveStatus.TODO,
-            homeBody = "Sitting in 0.01% checking. Ally pays 4.20% APY.",
+            homeBody = "0.01% checking → Ally 4.20% APY.",
             homeCta = "Open transfer guide",
             icon = "CASH",
             detail = detail(

@@ -92,7 +92,22 @@ class AiCfoLogicTest {
         assertEquals("gympass", home.moveAt(0).id)
         assertEquals("capital-one", home.moveAt(1).id)
         assertEquals("idle-cash", home.moveAt(2).id)
-        assertTrue(home.pulse.contains("47 days"))
+        assertEquals("\$8,420", home.savingsAmount)
+        assertEquals("\$42.1k", home.netWorthAmount)
+        assertTrue(home.savingsUp)
+        assertTrue(home.netWorthUp)
+        assertEquals("47 days runway · quietly building", home.runway)
+        assertEquals(
+            "If unused Gympass stayed cancelled this year, you'd keep ~\$564 more",
+            home.hope,
+        )
+        assertEquals(3, home.snapshotCount())
+        assertEquals("Needs", home.snapshotAt(0).label)
+        assertEquals("\$2,840", home.snapshotAt(0).amount)
+        assertEquals("Wants", home.snapshotAt(1).label)
+        assertEquals("To save", home.snapshotAt(2).label)
+        assertEquals("\$890", home.snapshotAt(2).amount)
+        assertEquals("Last check-in 86 days ago — paying for nothing.", home.moveAt(0).body)
     }
 
     @Test
@@ -102,6 +117,7 @@ class AiCfoLogicTest {
         app.performSecondary("gympass")
         assertEquals(MoveStatusCode.SKIPPED, app.moveStatus("gympass"))
         assertEquals("capital-one", app.home().moveAt(0).id)
+        assertEquals("", app.home().hope)
 
         app.performPrimary("capital-one")
         assertEquals(MoveStatusCode.TODO, app.moveStatus("capital-one"))
@@ -109,6 +125,7 @@ class AiCfoLogicTest {
 
         app.performPrimary("gympass")
         assertEquals(MoveStatusCode.DONE, app.moveStatus("gympass"))
+        assertTrue(app.home().hope.contains("\$564 stays with you"))
     }
 
     @Test

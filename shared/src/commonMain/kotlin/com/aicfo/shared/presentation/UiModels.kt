@@ -49,18 +49,38 @@ data class HomeMoveModel(
     val icon: String,
 )
 
+/** One quiet amount in the Home Needs · Wants · To save row. */
+data class HomeAmountModel(
+    val label: String,
+    val amount: String,
+    val caption: String,
+    val tone: String,
+)
+
 data class HomeModel(
     val greeting: String,
     val subtitle: String,
     val initials: String,
     val showNotificationDot: Boolean,
-    val pulse: String,
+    val savingsLabel: String,
+    val savingsAmount: String,
+    val savingsDelta: String,
+    val savingsUp: Boolean,
+    val netWorthLabel: String,
+    val netWorthAmount: String,
+    val netWorthDelta: String,
+    val netWorthUp: Boolean,
+    val runway: String,
+    val hope: String,
     val sectionTitle: String,
     val seeAllLabel: String,
     val emptyTitle: String,
     val emptyBody: String,
+    val snapshot: List<HomeAmountModel>,
     val moves: List<HomeMoveModel>,
 ) {
+    fun snapshotCount(): Int = snapshot.size
+    fun snapshotAt(index: Int): HomeAmountModel = snapshot[index]
     fun moveCount(): Int = moves.size
     fun moveAt(index: Int): HomeMoveModel = moves[index]
 }

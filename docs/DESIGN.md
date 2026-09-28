@@ -1,8 +1,10 @@
 # AI CFO for individuals — Design one-pager
 
 **Audience:** Sofia (product design) · Susmit review  
-**Status:** Look pack **v1.1** — **HOLD deep UI until Susmit likes the look**  
+**Status:** Look pack **v1.2** — Home IA **locked by Susmit** (wealth context + spend/save snapshot + moves). Soft-card craft still v1.1. Onboarding pack v1.1 stays.  
 **Sibling product:** TaxVault = quarterly estimated-tax set-aside only. This product = broader personal CFO **action coach**.
+
+> **Mark note:** Home v1.2 is locked. The wealth strip, hope line, Needs · Wants · To save row, and three priority moves are the Home contract. Onboarding stays the 4-step v1.1 flow. Soft-card tokens are unchanged.
 
 ---
 
@@ -27,7 +29,8 @@ KMP mobile (Android + iOS), US market first. Read-only connections to banks, car
 ## Information architecture
 
 ```
-Home          → Hello + thin CFO pulse + 3–4 prioritized action cards
+Home          → Hello + hopeful wealth strip + hope line + this-month snapshot
+                + 3–4 prioritized action cards (action-first still)
 Moves         → ranked checklist for the month (To do / Done / Skipped)
 Action detail → plain-English why + math + primary CTA + secondary remind/keep
 Accounts      → connected institutions with Read-only badges
@@ -36,11 +39,22 @@ Settings      → profile, notifications, privacy, disconnect
 
 Bottom nav: **Home · Moves · Accounts · Settings** (floating pill)
 
-**Action-first IA is unchanged in v1.1.** Home is *not* income/expense KPIs, spending charts, cash-flow gauges, P2P quick-pay, or card carousels.
+### Home IA v1.2 (Susmit OK)
+
+Order above the fold:
+
+1. **Hopeful wealth strip** — soft card with **Savings** + **Net worth** (calm green tint when up MoM). Optional hopeful subline. Runway folded in as a thin foot (no separate pulse clutter).
+2. **Hope line** (when relevant) — e.g. “If unused Gympass stayed cancelled this year, you’d keep ~$564 more” — hopeful, not guilt.
+3. **This month snapshot** — one soft row/card with three quiet amounts: **Needs** · **Wants** · **To save**. No pie charts, no income/expense KPI carousel, no spending line charts.
+4. **This month’s moves** — 3 priority action cards + See all. **#1 tap remains the top move CTA** (action-first unchanged).
+
+**Still not a budget app.** Wealth + snapshot are calm context so moves feel grounded — not the product hero. Rejected: pie/donut, income/expense KPI carousel, spending line charts, Cash Flow Health gauges, P2P quick-pay, card carousels.
+
+**Action-first IA is unchanged.** Soft-card v1.1 craft is unchanged.
 
 ---
 
-## Design tokens — v1.1 soft-card craft
+## Design tokens — v1.1 soft-card craft (kept in v1.2)
 
 | Token | Value |
 |-------|-------|
@@ -69,7 +83,7 @@ Bottom nav: **Home · Moves · Accounts · Settings** (floating pill)
 
 | File | Screen | Purpose |
 |------|--------|---------|
-| `ai-cfo-home.png` | Home | Hello Maya · pulse strip · this month’s moves cards |
+| `ai-cfo-home.png` | Home **v1.2** | Hello Maya · wealth strip · hope line · Needs/Wants/To save · priority moves |
 | `ai-cfo-moves.png` | Moves | Ranked October 2026 checklist for Maya |
 | `ai-cfo-action-debt.png` | Action · debt | 24.9% APR card — math + Schedule / Remind |
 | `ai-cfo-action-sub.png` | Action · sub | Unused Gympass — last used, cancel / keep |
@@ -118,6 +132,8 @@ Onboarding HTML + PNGs live in `onboarding/`; re-shot via `cd onboarding && node
 
 **Do**
 - Lead with **actions** and concrete CTAs (“Cancel · save $47/mo”)
+- Show calm wealth context + Needs/Wants/To save as quiet grounding (v1.2 Home)
+- Use hope framing (“you’d keep ~$X more”), not guilt
 - Show plain-English *why* + simple math ($X extra → save $Y)
 - Mark every connected account **Read-only**
 - Keep priority badges sparse (P1 / P2 / P3)
@@ -125,8 +141,9 @@ Onboarding HTML + PNGs live in `onboarding/`; re-shot via `cd onboarding && node
 
 **Don’t**
 - Hero pie / donut / rainbow charts or Cash Flow Health gauges
+- Income/expense KPI carousel or spending line charts on Home
 - Dense Workday-style admin tables
-- Net-worth / income-expense dashboards as the home story
+- Net-worth / income-expense dashboards as the *home story* (wealth strip is context, not hero)
 - “Budget categories” as the primary IA
 - Auto-move money (product is coach + deep links / schedules user controls)
 
@@ -134,8 +151,8 @@ Onboarding HTML + PNGs live in `onboarding/`; re-shot via `cd onboarding && node
 
 ## Mark HOLD note
 
-> **HOLD deep UI polish, component library expansion, and engineering handoff of production screens until Susmit signs off on this look.**  
-> Sofia: share core PNGs + onboarding pack + this one-pager. If look is approved, next pass = interaction states, empty/error, and KMP implementation notes for Mark. Onboarding flow mocks are ready in `onboarding/`.
+> Home v1.2 is signed off. Wealth, hope, and the Needs · Wants · To save snapshot are in the app as calm context above the moves.  
+> Next pass can add interaction, empty, and error states for those blocks. Onboarding flow mocks stay in `onboarding/`.
 
 ---
 

@@ -33,7 +33,7 @@ Floating pill nav: **Home · Moves · Accounts · Settings**.
 | Screen | Behavior |
 | --- | --- |
 | Onboarding | Welcome → actions, not charts → read-only connect → 30-day Pro trial. |
-| Home | Hello Maya, a thin runway pulse, and up to three open moves. The first card is the top move. No chat box. |
+| Home | Hello Maya, then a wealth strip (savings + net worth, runway in the foot), a hope line when Gympass is still open or cancelled, Needs · Wants · To save, and up to three priority moves. See all opens Moves. The first card is the top move. No charts, no chat. |
 | Moves | October 2026 ranked list with To do / Done / Skipped. |
 | Action detail | Why, math, primary CTA, secondary remind / keep. |
 | Accounts | Connected institutions with **Read-only** badges. |
@@ -46,6 +46,8 @@ Onboarding follows Sofia’s v1.1 boards (`OnboardingScreen` / `OnboardingView`)
 ## Maya Chen stub
 
 Austin, TX. Freelance product designer. Chase checking ($4,812 at 0.01% APY) and savings, Amex Blue Cash, Capital One Quicksilver ($3,840 at 24.9% APR), Nelnet federal student loan, Fidelity brokerage. Rent $1,850. Spotify and Adobe look active. Gympass does not — last check-in July 5, $47/month, $564/year if cancelled. About $4,200 of checking cash is idle.
+
+Home v1.2 context (the locked board, not a sum of those balances): savings $8,420 (up $340 this month), net worth $42.1k (up 2.1% MoM), 47 days of runway, Needs $2,840 · Wants $620 · To save $890. Keeping Gympass hides the hope line. Cancelling it confirms the $564 stays with her.
 
 October moves, in rank order:
 
