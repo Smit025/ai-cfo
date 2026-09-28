@@ -124,6 +124,9 @@ fun SettingsScreen(controller: AiCfoController, tick: Int) {
                 QaAction("Simulate bank reconnect", AutomationTags.QA_SIMULATE_RECONNECT) {
                     controller.debugSimulateNeedsReauth()
                 }
+                QaAction("Simulate sync failure", AutomationTags.QA_SIMULATE_FAILURE) {
+                    controller.debugSimulateSyncFailure()
+                }
             }
         }
     }

@@ -19,12 +19,13 @@ The Maya stub is still the data. The sync hooks around it are real.
 
 | Call | When |
 | --- | --- |
-| `refreshAccounts(ColdStart)` | Process start, once the UI is on screen |
-| `refreshAccounts(Foreground)` | App returns to the foreground after having been in the background |
+| `refreshAccounts(ColdStart)` | Process start, once, when the first `ON_START` is observed |
+| `refreshAccounts(Foreground)` | A later return to the foreground, after the app has left it |
 | `refreshAccounts(PullToRefresh)` | Pull down on Home or Accounts |
 | `refreshAccounts(Manual)` | Connect, **Try again**, and the reconnect path |
 | `reconnectBank()` | Clears the re-auth flag and refreshes. Does not move money. |
 | `debugSimulateNeedsReauth()` | Debug QA only (Settings → **Simulate bank reconnect**). Release builds ignore it. |
+| `debugSimulateSyncFailure()` | Debug QA only (Settings → **Simulate sync failure**). Release builds ignore it. |
 
 `SyncStatus` is `Idle`, `Syncing`, `Success(lastSyncedAt)`, `Failed(reason)`, or `NeedsReauth`. Home and Accounts read `freshnessLabel`, `syncCode`, `syncActionLabel`, and `syncStale` from the shared models. They do not format the relative time themselves.
 

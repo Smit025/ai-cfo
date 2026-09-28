@@ -308,6 +308,16 @@ class AiCfoController(
         publish()
     }
 
+    /** Debug/QA only. Leaves the last successful timestamp and marks the sync failed. */
+    fun debugSimulateSyncFailure() {
+        if (!Qa.toolsEnabled(debugBuild)) return
+        syncGeneration += 1
+        store.write(Keys.NEEDS_REAUTH, "false")
+        syncStatus = SyncStatus.Failed("Couldn't refresh")
+        persistSync()
+        publish()
+    }
+
     fun home(): HomeModel = HomeUseCase.build(
         resolved(),
         notificationsEnabled(),

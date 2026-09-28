@@ -267,6 +267,22 @@ class BankSyncTest {
         app.debugSimulateNeedsReauth()
         assertTrue(app.syncStatus() is SyncStatus.Success)
         assertEquals("false", store.read("sync_needs_reauth"))
+        app.debugSimulateSyncFailure()
+        assertTrue(app.syncStatus() is SyncStatus.Success)
+    }
+
+    @Test
+    fun debugFailureKeepsTheLastSyncAndAsksToTryAgain() {
+        val app = linkedApp(ManualClock(10L))
+        app.refreshAccounts(SyncTrigger.ColdStart)
+        app.debugSimulateSyncFailure()
+        val status = app.syncStatus()
+        assertTrue(status is SyncStatus.Failed)
+        assertEquals("Couldn't refresh", status.reason)
+        assertEquals("Try again", app.home().syncActionLabel)
+        assertEquals("Try again", app.accounts().syncActionLabel)
+        assertTrue(app.home().freshnessLabel.contains("Last update"))
+        assertFalse(app.home().freshnessLabel.startsWith("Updated"))
     }
 
     @Test

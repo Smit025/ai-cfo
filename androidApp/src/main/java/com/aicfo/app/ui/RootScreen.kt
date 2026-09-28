@@ -75,10 +75,9 @@ fun AiCfoRoot(vm: AiCfoViewModel = viewModel()) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_START) vm.onAppVisible()
         }
+        // addObserver replays ON_START when the activity is already started.
+        // A second onAppVisible here would send Foreground on the same open.
         lifecycleOwner.lifecycle.addObserver(observer)
-        if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
-            vm.onAppVisible()
-        }
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
     val activity = LocalContext.current.findActivity() as FragmentActivity

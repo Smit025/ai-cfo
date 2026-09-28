@@ -79,6 +79,7 @@ struct SettingsView: View {
                         SecondaryButton(label: "Clear QA override") { model.controller.debugClearOverride() }
                         SecondaryButton(label: "Replay onboarding") { model.controller.debugReplayOnboarding() }
                         SecondaryButton(label: "Simulate bank reconnect") { model.controller.debugSimulateNeedsReauth() }
+                        SecondaryButton(label: "Simulate sync failure") { model.controller.debugSimulateSyncFailure() }
                     }
                     .padding(16)
                     .softCard()
