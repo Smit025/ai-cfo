@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.aicfo.app.BuildConfig
 import com.aicfo.app.theme.AiColors
 import com.aicfo.shared.domain.AiCfoController
 
@@ -59,10 +60,12 @@ fun PaywallScreen(controller: AiCfoController, tick: Int) {
             }
             Spacer(Modifier.height(16.dp))
             Text(model.finePrint, color = AiColors.Muted, fontSize = 13.sp, lineHeight = 18.sp)
-            Spacer(Modifier.height(18.dp))
-            Text("QA", color = AiColors.Text, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-            Spacer(Modifier.height(8.dp))
-            SecondaryButton("QA: return to trial") { controller.debugForceTrial() }
+            if (BuildConfig.DEBUG && remember(tick) { controller.settings().qaEnabled }) {
+                Spacer(Modifier.height(18.dp))
+                Text("QA", color = AiColors.Text, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                Spacer(Modifier.height(8.dp))
+                SecondaryButton("QA: return to trial") { controller.debugForceTrial() }
+            }
             Spacer(Modifier.height(24.dp))
         }
     }

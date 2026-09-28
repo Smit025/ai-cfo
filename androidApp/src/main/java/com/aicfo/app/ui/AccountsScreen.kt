@@ -57,6 +57,10 @@ fun AccountsScreen(controller: AiCfoController, tick: Int) {
                     Text(model.emptyTitle, color = AiColors.Text, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
                     Spacer(Modifier.height(6.dp))
                     Text(model.emptyBody, color = AiColors.Muted, fontSize = 14.sp, lineHeight = 20.sp)
+                    if (model.linkError.isNotEmpty()) {
+                        Spacer(Modifier.height(10.dp))
+                        Text(model.linkError, color = AiColors.Danger, fontSize = 14.sp, lineHeight = 20.sp)
+                    }
                     Spacer(Modifier.height(14.dp))
                     PrimaryButton(model.emptyCta) { controller.connectReadOnlyStub() }
                 }

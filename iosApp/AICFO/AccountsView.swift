@@ -25,6 +25,11 @@ struct AccountsView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text(accounts.emptyTitle).font(Theme.semi(17)).foregroundStyle(Theme.text)
                         Text(accounts.emptyBody).font(Theme.body(14)).foregroundStyle(Theme.muted)
+                        if !accounts.linkError.isEmpty {
+                            Text(accounts.linkError)
+                                .font(Theme.body(14))
+                                .foregroundStyle(Theme.danger)
+                        }
                         PrimaryButton(label: accounts.emptyCta) {
                             _ = model.controller.connectReadOnlyStub()
                         }

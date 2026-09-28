@@ -26,12 +26,18 @@ final class AppModel: ObservableObject {
     init() {
         let vault = KeychainTokenVault()
         let store = DefaultsStore()
+        #if DEBUG
+        let debugBuild = true
+        #else
+        let debugBuild = false
+        #endif
         controller = AiCfoController(
             vault: vault,
             store: store,
             clock: SystemAppClock(),
             market: Markets.shared.unitedStates(),
-            localStrings: BundleLocalStrings()
+            localStrings: BundleLocalStrings(),
+            debugBuild: debugBuild
         )
         let bridge = BridgeObserver()
         observer = bridge

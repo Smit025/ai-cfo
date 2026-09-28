@@ -92,6 +92,16 @@ fun OnboardingScreen(controller: AiCfoController, tick: Int) {
             }
             ProgressDots(model.step, model.stepCount)
             Spacer(Modifier.height(18.dp))
+            if (model.linkError.isNotEmpty()) {
+                Text(
+                    model.linkError,
+                    color = AiColors.Danger,
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                )
+            }
             PrimaryButton(label = model.primaryCta, onClick = { controller.primaryOnboarding() })
             when (model.step) {
                 2 -> if (model.secondaryCta.isNotEmpty()) {

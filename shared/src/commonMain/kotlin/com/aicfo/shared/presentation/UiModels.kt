@@ -177,6 +177,7 @@ data class AccountsModel(
     val emptyTitle: String,
     val emptyBody: String,
     val emptyCta: String,
+    val linkError: String,
     val groups: List<AccountGroupModel>,
 ) {
     fun groupCount(): Int = groups.size
@@ -209,6 +210,7 @@ data class OnboardingModel(
     val features: List<OnboardingCard>,
     val connectTypes: List<OnboardingCard>,
     val chips: List<String>,
+    val linkError: String,
 ) {
     fun cardCount(): Int = cards.size
     fun cardAt(index: Int): OnboardingCard = cards[index]

@@ -42,13 +42,26 @@ class AiCfoController(
     private val clock: AppClock,
     private val market: MarketPack,
     private val localStrings: LocalStrings,
+    private val debugBuild: Boolean,
 ) {
-    /** US pack, shared English catalog. Platform string tables can override keys. */
+    /**
+     * US pack, shared English catalog, debug QA tools on.
+     * Release apps must use the full constructor and pass `debugBuild = false`.
+     */
     constructor(
         vault: TokenVault,
         store: LocalStore,
         clock: AppClock,
-    ) : this(vault, store, clock, Markets.unitedStates(), EmptyLocalStrings)
+    ) : this(vault, store, clock, Markets.unitedStates(), EmptyLocalStrings, true)
+
+    /** Debug/test helper. Release apps must pass `debugBuild = false`. */
+    constructor(
+        vault: TokenVault,
+        store: LocalStore,
+        clock: AppClock,
+        market: MarketPack,
+        localStrings: LocalStrings,
+    ) : this(vault, store, clock, market, localStrings, true)
 
     private val copy = CopyResolver(market.copy, localStrings)
     private val observers = mutableListOf<AppObserver>()
@@ -59,6 +72,7 @@ class AiCfoController(
     private var biometricHardware: Boolean = false
     private var selectedMoveId: String? = null
     private var tab: String = "HOME"
+    private var linkError: String = ""
 
     init {
         load()
@@ -82,7 +96,9 @@ class AiCfoController(
     fun tab(): String = tab
 
     fun selectTab(value: String) {
+        if (value !in MainTabs) return
         tab = value
+        store.write(Keys.TAB, value)
         publish()
     }
 
@@ -114,10 +130,12 @@ class AiCfoController(
         market.config.planMonth,
     )
 
-    fun onboarding(): OnboardingModel = OnboardingUseCase.build(onboardingStep, banksLinked(), market, copy)
+    fun onboarding(): OnboardingModel =
+        OnboardingUseCase.build(onboardingStep, banksLinked(), market, copy, linkError)
 
     fun advanceOnboarding() {
         if (!onboarding().canAdvance) return
+        linkError = ""
         if (onboardingStep >= 3) {
             completeOnboarding(startTrial = true)
         } else {
@@ -129,9 +147,7 @@ class AiCfoController(
 
     /** Primary button. Connect securely links the read-only sample, then continues. */
     fun primaryOnboarding() {
-        if (onboardingStep == 2) {
-            connectReadOnlyStub()
-        }
+        if (onboardingStep == 2 && !connectReadOnlyStub()) return
         advanceOnboarding()
     }
 
@@ -153,14 +169,32 @@ class AiCfoController(
         publish()
     }
 
+    /**
+     * Read-only sample link. A policy or vault failure does not crash and does not
+     * mark institutions linked. Any tokens written during the attempt are cleared.
+     */
     fun connectReadOnlyStub(): Boolean {
-        MayaStub.accounts.forEach { account ->
+        for (account in MayaStub.accounts) {
             val token = "link_stub_${account.id}"
-            check(LinkPolicy.accepts(token))
-            val stored = vault.put("institution.${account.id}", token)
-            check(stored)
+            val stored = try {
+                LinkPolicy.accepts(token) && vault.put("institution.${account.id}", token)
+            } catch (_: Throwable) {
+                false
+            }
+            if (!stored) {
+                try {
+                    vault.clear()
+                } catch (_: Throwable) {
+                    // The failure is still reported below.
+                }
+                store.write(Keys.BANKS, "false")
+                linkError = "Couldn't link these accounts. Nothing was saved."
+                publish()
+                return false
+            }
         }
         store.write(Keys.BANKS, "true")
+        linkError = ""
         SafeLog.debug("link", "read-only sample linked")
         publish()
         return true
@@ -181,7 +215,7 @@ class AiCfoController(
         return DetailUseCase.build(row)
     }
 
-    fun accounts(): AccountsModel = AccountsUseCase.build(banksLinked(), copy)
+    fun accounts(): AccountsModel = AccountsUseCase.build(banksLinked(), copy, linkError)
 
     fun settings(): SettingsModel {
         val ent = entitlement()
@@ -197,7 +231,7 @@ class AiCfoController(
             planDetail = ent.planDetail,
             banksLinked = banksLinked(),
             phase = ent.phase,
-            qaEnabled = Qa.toolsEnabled,
+            qaEnabled = Qa.toolsEnabled(debugBuild),
         )
     }
 
@@ -321,6 +355,7 @@ class AiCfoController(
     fun debugClearOverride() = setOverride(QaOverride.NONE)
 
     fun debugReplayOnboarding() {
+        if (!Qa.toolsEnabled(debugBuild)) return
         store.write(Keys.ONBOARDING, "false")
         store.write(Keys.STEP, "0")
         onboardingStep = 0
@@ -338,6 +373,7 @@ class AiCfoController(
     }
 
     private fun setOverride(code: String) {
+        if (!Qa.toolsEnabled(debugBuild)) return
         store.write(Keys.OVERRIDE, code)
         publish()
     }
@@ -354,7 +390,11 @@ class AiCfoController(
     private fun entitlement() = EntitlementPolicy.resolve(
         nowMs = clock.nowEpochMs(),
         trialStartedAtMs = store.read(Keys.TRIAL_START)?.toLongOrNull(),
-        overrideCode = store.read(Keys.OVERRIDE) ?: QaOverride.NONE,
+        overrideCode = if (Qa.toolsEnabled(debugBuild)) {
+            store.read(Keys.OVERRIDE) ?: QaOverride.NONE
+        } else {
+            QaOverride.NONE
+        },
         subscribedPlan = store.read(Keys.PLAN) ?: "NONE",
         monthlyLabel = MoneyFormat.standard(market.monthlyPrice),
         yearlyLabel = MoneyFormat.standard(market.yearlyPrice),
@@ -366,7 +406,11 @@ class AiCfoController(
 
     private fun notificationsEnabled(): Boolean = store.read(Keys.NOTIFICATIONS) != "false"
 
-    private fun biometricEnabled(): Boolean = store.read(Keys.BIOMETRIC) != "false"
+    private fun biometricEnabled(): Boolean = when (store.read(Keys.BIOMETRIC)) {
+        "true" -> true
+        "false" -> false
+        else -> !debugBuild
+    }
 
     private fun resolved(): List<ResolvedMove> = MayaStub.moves.map { move ->
         ResolvedMove(
@@ -388,6 +432,8 @@ class AiCfoController(
 
     private fun load() {
         onboardingStep = store.read(Keys.STEP)?.toIntOrNull()?.coerceIn(0, 3) ?: 0
+        val savedTab = store.read(Keys.TAB)
+        if (savedTab != null && savedTab in MainTabs) tab = savedTab
         val rawStatus = store.read(Keys.STATUSES).orEmpty()
         if (rawStatus.isNotEmpty()) {
             rawStatus.split(';').forEach { part ->
@@ -423,8 +469,11 @@ class AiCfoController(
 }
 
 object Qa {
-    const val toolsEnabled: Boolean = true
+    /** True only for a debug/DEBUG build. Release always returns false. */
+    fun toolsEnabled(debugBuild: Boolean): Boolean = debugBuild
 }
+
+private val MainTabs = setOf("HOME", "MOVES", "ACCOUNTS", "SETTINGS")
 
 private object Keys {
     const val ONBOARDING = "onboarding_complete"
@@ -437,4 +486,5 @@ private object Keys {
     const val BIOMETRIC = "biometric_enabled"
     const val STATUSES = "move_statuses"
     const val NOTES = "move_notes"
+    const val TAB = "selected_tab"
 }

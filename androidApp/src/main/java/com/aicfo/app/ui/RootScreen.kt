@@ -28,6 +28,7 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.aicfo.app.BuildConfig
 import com.aicfo.app.i18n.AndroidLocalStrings
 import com.aicfo.app.security.AndroidKeystoreTokenVault
 import com.aicfo.app.security.AndroidLocalStore
@@ -45,6 +46,7 @@ class AiCfoViewModel(app: Application) : AndroidViewModel(app) {
         clock = SystemAppClock(),
         market = Markets.unitedStates(),
         localStrings = AndroidLocalStrings(app),
+        debugBuild = BuildConfig.DEBUG,
     )
 }
 

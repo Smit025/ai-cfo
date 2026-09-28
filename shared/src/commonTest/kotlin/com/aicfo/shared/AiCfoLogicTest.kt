@@ -3,6 +3,9 @@ package com.aicfo.shared
 import com.aicfo.shared.domain.AiCfoController
 import com.aicfo.shared.domain.AppClock
 import com.aicfo.shared.domain.EntitlementPolicy
+import com.aicfo.shared.domain.Qa
+import com.aicfo.shared.market.EmptyLocalStrings
+import com.aicfo.shared.market.Markets
 import com.aicfo.shared.market.MoneyMath
 import com.aicfo.shared.domain.Pricing
 import com.aicfo.shared.presentation.Gate
@@ -12,6 +15,7 @@ import com.aicfo.shared.presentation.QaOverride
 import com.aicfo.shared.security.LinkPolicy
 import com.aicfo.shared.security.MemoryLocalStore
 import com.aicfo.shared.security.MemoryTokenVault
+import com.aicfo.shared.security.TokenVault
 import com.aicfo.shared.security.PiiPolicy
 import com.aicfo.shared.security.SafeLog
 import com.aicfo.shared.security.TlsPolicy
@@ -225,6 +229,99 @@ class AiCfoLogicTest {
     }
 
     @Test
+    fun releaseBuildCannotForceTrialOrPaywall() {
+        val store = MemoryLocalStore()
+        store.write("qa_override", QaOverride.PAYWALL)
+        val app = releaseApp(MutableClock(10L), store)
+        assertFalse(Qa.toolsEnabled(false))
+        assertFalse(app.settings().qaEnabled)
+        finishOnboarding(app)
+        assertEquals(Phase.TRIAL, app.settings().phase)
+        assertEquals(Gate.APP, app.gate())
+
+        app.debugForcePaywall()
+        app.debugForceTrial()
+        app.debugForcePro()
+        app.debugClearOverride()
+        app.debugReplayOnboarding()
+
+        assertEquals(QaOverride.PAYWALL, store.read("qa_override"))
+        assertEquals(Phase.TRIAL, app.settings().phase)
+        assertEquals(Gate.APP, app.gate())
+    }
+
+    @Test
+    fun debugBuildLeavesBiometricOffUntilTheUserOptsIn() {
+        val store = MemoryLocalStore()
+        val app = AiCfoController(MemoryTokenVault(), store, MutableClock(10L))
+        finishOnboarding(app)
+        assertFalse(app.settings().biometricEnabled)
+        val restarted = AiCfoController(MemoryTokenVault(), store, MutableClock(10L))
+        assertFalse(restarted.settings().biometricEnabled)
+        assertEquals(Gate.APP, restarted.gate())
+        restarted.setBiometricEnabled(true)
+        assertTrue(restarted.settings().biometricEnabled)
+        restarted.lockNow()
+        assertEquals(Gate.LOCK, restarted.gate())
+    }
+
+    @Test
+    fun releaseBuildLocksWhenBiometricPreferenceIsUnset() {
+        val store = MemoryLocalStore()
+        val app = releaseApp(MutableClock(10L), store)
+        finishOnboarding(app)
+        assertTrue(app.settings().biometricEnabled)
+        val restarted = releaseApp(MutableClock(10L), store)
+        assertTrue(restarted.settings().biometricEnabled)
+        assertEquals(Gate.LOCK, restarted.gate())
+        restarted.setBiometricEnabled(false)
+        val optedOut = releaseApp(MutableClock(10L), store)
+        assertFalse(optedOut.settings().biometricEnabled)
+        assertEquals(Gate.APP, optedOut.gate())
+    }
+
+    @Test
+    fun lastMainTabSurvivesANewController() {
+        val store = MemoryLocalStore()
+        val app = AiCfoController(MemoryTokenVault(), store, MutableClock(10L))
+        app.selectTab("ACCOUNTS")
+        assertEquals("ACCOUNTS", app.tab())
+        val restarted = AiCfoController(MemoryTokenVault(), store, MutableClock(10L))
+        assertEquals("ACCOUNTS", restarted.tab())
+        restarted.selectTab("NOT_A_TAB")
+        assertEquals("ACCOUNTS", restarted.tab())
+        restarted.selectTab("SETTINGS")
+        assertEquals("SETTINGS", AiCfoController(MemoryTokenVault(), store, MutableClock(10L)).tab())
+    }
+
+    @Test
+    fun connectFailureDoesNotCrashOrAdvance() {
+        val vault = FailSecondVault()
+        val app = AiCfoController(vault, MemoryLocalStore(), MutableClock(10L))
+        app.advanceOnboarding()
+        app.advanceOnboarding()
+        assertEquals(2, app.onboarding().step)
+        app.primaryOnboarding()
+        assertEquals(2, app.onboarding().step)
+        assertFalse(app.accounts().linked)
+        assertTrue(app.onboarding().linkError.contains("Nothing was saved"))
+        assertTrue(app.accounts().linkError.contains("Nothing was saved"))
+        assertTrue(vault.cleared)
+        assertNull(vault.read("institution.chase-checking"))
+    }
+
+    @Test
+    fun connectVaultThrowStaysUnlinked() {
+        val app = AiCfoController(ThrowingVault(), MemoryLocalStore(), MutableClock(10L))
+        app.advanceOnboarding()
+        app.advanceOnboarding()
+        assertFalse(app.connectReadOnlyStub())
+        assertEquals(2, app.onboarding().step)
+        assertFalse(app.accounts().linked)
+        assertTrue(app.accounts().linkError.isNotEmpty())
+    }
+
+    @Test
     fun movesBoardCountsTodoDoneAndSkipped() {
         val app = newApp(MutableClock(10L))
         finishOnboarding(app)
@@ -240,6 +337,17 @@ class AiCfoLogicTest {
         return AiCfoController(MemoryTokenVault(), MemoryLocalStore(), clock)
     }
 
+    private fun releaseApp(clock: MutableClock, store: MemoryLocalStore = MemoryLocalStore()): AiCfoController {
+        return AiCfoController(
+            MemoryTokenVault(),
+            store,
+            clock,
+            Markets.unitedStates(),
+            EmptyLocalStrings,
+            false,
+        )
+    }
+
     private fun finishOnboarding(app: AiCfoController) {
         repeat(8) {
             if (app.gate() != Gate.ONBOARDING) return
@@ -251,4 +359,34 @@ class AiCfoLogicTest {
 
 private class MutableClock(var now: Long) : AppClock {
     override fun nowEpochMs(): Long = now
+}
+
+private class FailSecondVault : TokenVault {
+    private val values = mutableMapOf<String, String>()
+    private var puts = 0
+    var cleared: Boolean = false
+
+    override fun put(key: String, value: String): Boolean {
+        puts += 1
+        if (puts >= 2) return false
+        values[key] = value
+        return true
+    }
+
+    override fun read(key: String): String? = values[key]
+
+    override fun clear() {
+        cleared = true
+        values.clear()
+    }
+}
+
+private class ThrowingVault : TokenVault {
+    override fun put(key: String, value: String): Boolean {
+        throw IllegalStateException("keystore")
+    }
+
+    override fun read(key: String): String? = null
+
+    override fun clear() = Unit
 }

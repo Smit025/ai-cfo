@@ -57,11 +57,13 @@ Floating pill nav: **Home · Moves · Accounts · Settings**.
 | Moves | October 2026 ranked list with To do / Done / Skipped. |
 | Action detail | Why, math, primary CTA, secondary remind / keep. |
 | Accounts | Connected institutions with **Read-only** badges. |
-| Settings | Profile, notifications, biometric lock, privacy, disconnect, QA tools. |
+| Settings | Profile, notifications, biometric lock, privacy, disconnect. QA tools appear only in debug builds. |
 | Lock | Biometric gate on a cold start when the lock is on. |
 | Paywall | Hard stop when the trial is over. $9.99/month or $79/year. No forever-free plan. |
 
-Onboarding follows Sofia’s v1.1 boards (`OnboardingScreen` / `OnboardingView`). Copy lives in the shared controller. **Connect securely** links the read-only Maya sample; **Skip for now** continues without linking. **Start free 30-day trial** starts the clock. **Maybe later** finishes onboarding without a trial, so the hard paywall shows.
+Onboarding follows Sofia’s v1.1 boards (`OnboardingScreen` / `OnboardingView`). Copy lives in the shared controller. **Connect securely** links the read-only Maya sample; **Skip for now** continues without linking. If the vault or link policy rejects a token, connect fails softly: nothing is marked linked, onboarding stays on the connect step, and the screen shows an error. **Start free 30-day trial** starts the clock. **Maybe later** finishes onboarding without a trial, so the hard paywall shows.
+
+The last main tab (Home, Moves, Accounts, Settings) is stored with the other local flags and restored after process death.
 
 ## Maya Chen stub
 
@@ -86,7 +88,7 @@ Home opens on the first still-open move. Marking Gympass done or skipped promote
 - Prices: **$9.99/month** or **$79/year**. Purchase buttons in this build are simulated and mark the account Pro.
 - Replaying onboarding does **not** restart the 30 days.
 
-QA controls are in **Settings → QA · trial / paywall** (always on in this scaffold, `Qa.toolsEnabled`):
+QA controls are in **Settings → QA · trial / paywall** only when `Qa.toolsEnabled(debugBuild)` is true. That is debug/DEBUG builds. Release builds pass `debugBuild = false` (Android `BuildConfig.DEBUG`, iOS `#if DEBUG`), so the tools, the paywall **QA: return to trial** button, and `debugForce*` are absent. A release build also ignores a stored `qa_override`, so a planted preference cannot force the trial or the paywall.
 
 | Control | Effect |
 | --- | --- |
@@ -96,20 +98,20 @@ QA controls are in **Settings → QA · trial / paywall** (always on in this sca
 | Clear QA override | Drop the override and use the real clock / simulated subscription. |
 | Replay onboarding | Show the four steps again. The original trial start is kept. |
 
-The paywall itself has **QA: return to trial**, which is the same as Restore trial.
+In a debug build the paywall itself has **QA: return to trial**, which is the same as Restore trial. That row is not compiled into the release UI.
 
-The trial start, QA override, subscription flag, and move statuses persist (Android `SharedPreferences`, iOS `UserDefaults`). Link tokens persist in the Keystore / Keychain. The in-memory unlock flag resets when the process dies, so the biometric gate shows again on the next cold start when the lock is enabled.
+The trial start, subscription flag, selected tab, and move statuses persist (Android `SharedPreferences`, iOS `UserDefaults`). Link tokens persist in the Keystore / Keychain. The in-memory unlock flag resets when the process dies, so the biometric gate shows again on the next cold start when the lock is enabled.
 
 ## Security foundations
 
 - Linking is read-only. The product never moves money.
 - Raw bank passwords are rejected. The vault only accepts `link_…` tokens (`LinkPolicy`).
-- Android stores those tokens with an Android Keystore AES-GCM key. iOS stores them in the Keychain (`kSecAttrAccessibleWhenUnlockedThisDeviceOnly`).
+- Android stores those tokens with an Android Keystore AES-GCM key. iOS stores them in the Keychain (`kSecAttrAccessibleWhenUnlockedThisDeviceOnly`). Both vaults call shared `LinkPolicy.accepts` before writing. A rejected token is not stored.
 - Cleartext HTTP is off (`network_security_config.xml`, `TlsPolicy.cleartextAllowed = false`).
 - `TlsPolicy.spkiPins` is the certificate-pinning hook. The pin is a placeholder and must be replaced before a real API host is called. This scaffold makes no network calls and does not request `INTERNET`.
 - `SafeLog.redact` strips link tokens, `password=` / `token=` assignments, emails, and 13–19 digit numbers. The logger does not forward the original line.
 - Accounts render a Read-only badge. Stored account data is a mask (last four) plus a display balance — no full account numbers.
-- Biometric lock gates app open. With no fingerprint or Face ID, the lock screen explains that and offers **Continue without biometrics**. Settings → **Lock now** shows the gate without reinstalling.
+- Biometric lock gates app open. When the user has not chosen yet, release builds default the lock **on** and debug builds default it **off**, so emulator QA is not stuck on the lock screen. An explicit Settings toggle is what gets stored. With no fingerprint or Face ID, the lock screen explains that and offers **Continue without biometrics**. Settings → **Lock now** shows the gate without reinstalling.
 
 ## Adaptive layout
 
@@ -205,9 +207,21 @@ Product → Destination → an iPhone simulator or a registered device → Run. 
 
 Do not ship the debug-signed Android App Bundle to Play. The iOS archive uses your Apple distribution signing, which is separate.
 
+## Continuous integration
+
+`.github/workflows/android.yml` runs on push and pull request, on Linux:
+
+```bash
+./gradlew :shared:testDebugUnitTest :androidApp:assembleDebug
+```
+
+The job uses JDK 17 and Android SDK 35. It does not need `local.properties`; `ANDROID_HOME` is enough.
+
+iOS is not compiled in that workflow. Compiling the Swift app, or the Kotlin/Native `Shared` framework it embeds, needs a Mac with Xcode. See **iOS and TestFlight** below.
+
 ## Tests
 
-`shared/src/commonTest` covers the 30-day cliff, the QA override, “no forever free”, Gympass $47 × 12 = $564, home ranking, cancel / keep, link-token policy, and log redaction.
+`shared/src/commonTest` covers the 30-day cliff, the debug QA override, the release path that cannot force a trial or paywall, “no forever free”, Gympass $47 × 12 = $564, home ranking, cancel / keep, link-token policy, a failed connect that stays unlinked, tab restore, the debug/release biometric default, and log redaction.
 
 ```bash
 ./gradlew :shared:testDebugUnitTest

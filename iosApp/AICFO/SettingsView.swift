@@ -60,6 +60,7 @@ struct SettingsView: View {
                 if settings.banksLinked {
                     SecondaryButton(label: "Disconnect institutions") { model.controller.disconnectAll() }
                 }
+                #if DEBUG
                 if settings.qaEnabled {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("QA · trial / paywall").font(Theme.semi(16)).foregroundStyle(Theme.text)
@@ -74,6 +75,7 @@ struct SettingsView: View {
                     .padding(16)
                     .softCard()
                 }
+                #endif
             }
             .padding(.horizontal, 20)
             .padding(.top, 8)

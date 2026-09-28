@@ -25,6 +25,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.aicfo.app.BuildConfig
 import com.aicfo.app.theme.AiColors
 import com.aicfo.shared.domain.AiCfoController
 
@@ -84,7 +85,7 @@ fun SettingsScreen(controller: AiCfoController, tick: Int) {
         if (model.banksLinked) {
             SecondaryButton("Disconnect institutions") { controller.disconnectAll() }
         }
-        if (model.qaEnabled) {
+        if (BuildConfig.DEBUG && model.qaEnabled) {
             Column(Modifier.fillMaxWidth().softCard().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("QA · trial / paywall", color = AiColors.Text, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                 Text(

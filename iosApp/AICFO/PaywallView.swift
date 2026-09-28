@@ -32,8 +32,12 @@ struct PaywallView: View {
                 .padding(18)
                 .softCard()
                 Text(paywall.finePrint).font(Theme.body(13)).foregroundStyle(Theme.muted)
-                Text("QA").font(Theme.semi(13)).foregroundStyle(Theme.text)
-                SecondaryButton(label: "QA: return to trial") { model.controller.debugForceTrial() }
+                #if DEBUG
+                if model.controller.settings().qaEnabled {
+                    Text("QA").font(Theme.semi(13)).foregroundStyle(Theme.text)
+                    SecondaryButton(label: "QA: return to trial") { model.controller.debugForceTrial() }
+                }
+                #endif
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 24)

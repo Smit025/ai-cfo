@@ -178,7 +178,7 @@ internal object DetailUseCase {
 }
 
 internal object AccountsUseCase {
-    fun build(linked: Boolean, copy: CopyResolver): AccountsModel {
+    fun build(linked: Boolean, copy: CopyResolver, linkError: String): AccountsModel {
         val profile = MayaStub.profile
         val groups = if (!linked) {
             emptyList()
@@ -216,13 +216,20 @@ internal object AccountsUseCase {
             emptyTitle = "No institutions linked",
             emptyBody = "Connections are read-only. Bank passwords are never stored on this device.",
             emptyCta = "Link read-only sample",
+            linkError = linkError,
             groups = groups,
         )
     }
 }
 
 internal object OnboardingUseCase {
-    fun build(step: Int, banksLinked: Boolean, market: MarketPack, copy: CopyResolver): OnboardingModel {
+    fun build(
+        step: Int,
+        banksLinked: Boolean,
+        market: MarketPack,
+        copy: CopyResolver,
+        linkError: String,
+    ): OnboardingModel {
         val empty = OnboardingModel(
             step = step,
             stepCount = 4,
@@ -242,6 +249,7 @@ internal object OnboardingUseCase {
             features = emptyList(),
             connectTypes = emptyList(),
             chips = emptyList(),
+            linkError = linkError,
         )
         return when (step) {
             0 -> empty.copy(

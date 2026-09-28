@@ -23,16 +23,20 @@ class AndroidKeystoreTokenVault(context: Context) : TokenVault {
 
     override fun put(key: String, value: String): Boolean {
         if (!LinkPolicy.accepts(value)) return false
-        val cipher = Cipher.getInstance(TRANSFORMATION)
-        cipher.init(Cipher.ENCRYPT_MODE, secretKey())
-        val iv = cipher.iv
-        val encrypted = cipher.doFinal(value.encodeToByteArray())
-        val buffer = ByteBuffer.allocate(4 + iv.size + encrypted.size)
-        buffer.putInt(iv.size)
-        buffer.put(iv)
-        buffer.put(encrypted)
-        prefs.edit().putString(key, Base64.encodeToString(buffer.array(), Base64.NO_WRAP)).apply()
-        return true
+        return try {
+            val cipher = Cipher.getInstance(TRANSFORMATION)
+            cipher.init(Cipher.ENCRYPT_MODE, secretKey())
+            val iv = cipher.iv
+            val encrypted = cipher.doFinal(value.encodeToByteArray())
+            val buffer = ByteBuffer.allocate(4 + iv.size + encrypted.size)
+            buffer.putInt(iv.size)
+            buffer.put(iv)
+            buffer.put(encrypted)
+            prefs.edit().putString(key, Base64.encodeToString(buffer.array(), Base64.NO_WRAP)).apply()
+            true
+        } catch (_: Exception) {
+            false
+        }
     }
 
     override fun read(key: String): String? {

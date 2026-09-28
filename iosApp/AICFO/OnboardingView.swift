@@ -30,6 +30,14 @@ struct OnboardingView: View {
             }
             dots(step)
                 .padding(.bottom, 18)
+            if !step.linkError.isEmpty {
+                Text(step.linkError)
+                    .font(Theme.body(14))
+                    .foregroundStyle(Theme.danger)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .padding(.bottom, 12)
+            }
             PrimaryButton(label: step.primaryCta) {
                 model.controller.primaryOnboarding()
             }

@@ -7,7 +7,7 @@ final class KeychainTokenVault: NSObject, TokenVault {
     private let service = "com.aicfo.app.tokens"
 
     func put(key: String, value: String) -> Bool {
-        guard value.hasPrefix("link_"), !value.lowercased().contains("password") else { return false }
+        guard LinkPolicy.shared.accepts(token: value) else { return false }
         let data = Data(value.utf8)
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
