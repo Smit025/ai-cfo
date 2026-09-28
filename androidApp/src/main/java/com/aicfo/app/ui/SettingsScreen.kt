@@ -90,21 +90,54 @@ fun SettingsScreen(controller: AiCfoController, tick: Int) {
             SecondaryButton("Disconnect institutions") { controller.disconnectAll() }
         }
         if (BuildConfig.DEBUG && model.qaEnabled) {
-            Column(Modifier.fillMaxWidth().softCard().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("QA · trial / paywall", color = AiColors.Text, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+            val qaTitle = "QA · trial / paywall"
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .automationNode(AutomationTags.QA_TRIAL_PAYWALL, qaTitle)
+                    .softCard()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text(qaTitle, color = AiColors.Text, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                 Text(
                     "Debug tools for this build. Force the hard paywall or restore the 30-day trial without waiting.",
                     color = AiColors.Muted,
                     fontSize = 13.sp,
                     lineHeight = 18.sp,
                 )
-                PrimaryButton("Show paywall") { controller.debugForcePaywall() }
-                SecondaryButton("Restore trial") { controller.debugForceTrial() }
-                SecondaryButton("Simulate Pro") { controller.debugForcePro() }
-                SecondaryButton("Clear QA override") { controller.debugClearOverride() }
-                SecondaryButton("Replay onboarding") { controller.debugReplayOnboarding() }
+                QaAction("Show paywall", AutomationTags.QA_SHOW_PAYWALL, primary = true) {
+                    controller.debugForcePaywall()
+                }
+                QaAction("Restore trial", AutomationTags.QA_RESTORE_TRIAL) {
+                    controller.debugForceTrial()
+                }
+                QaAction("Simulate Pro", AutomationTags.QA_SIMULATE_PRO) {
+                    controller.debugForcePro()
+                }
+                QaAction("Clear QA override", AutomationTags.QA_CLEAR_OVERRIDE) {
+                    controller.debugClearOverride()
+                }
+                QaAction("Replay onboarding", AutomationTags.QA_REPLAY_ONBOARDING) {
+                    controller.debugReplayOnboarding()
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun QaAction(
+    label: String,
+    tag: String,
+    primary: Boolean = false,
+    onClick: () -> Unit,
+) {
+    val modifier = Modifier.tappableAutomationNode(tag, label, onClick)
+    if (primary) {
+        PrimaryButton(label, modifier, onClick = onClick)
+    } else {
+        SecondaryButton(label, modifier, onClick)
     }
 }
 

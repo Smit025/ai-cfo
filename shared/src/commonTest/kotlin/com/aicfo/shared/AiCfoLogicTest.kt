@@ -88,6 +88,35 @@ class AiCfoLogicTest {
     }
 
     @Test
+    fun returnToTrialAndSimulatedPurchasesDismissAForcedPaywall() {
+        val start = 1_700_000_000_000L
+        val clock = MutableClock(start)
+        val app = newApp(clock)
+        finishOnboarding(app)
+        clock.now = start + Pricing.TRIAL_WINDOW_MS
+        assertEquals(Gate.PAYWALL, app.gate())
+        assertEquals("Your 30-day Pro trial has ended", app.paywall().title)
+
+        app.debugForceTrial()
+        assertEquals(Gate.APP, app.gate())
+        assertEquals(Phase.TRIAL, app.settings().phase)
+
+        app.debugForcePaywall()
+        assertEquals(Gate.PAYWALL, app.gate())
+        assertEquals("Your 30-day Pro trial has ended", app.paywall().title)
+        app.purchaseYearly()
+        assertEquals(Gate.APP, app.gate())
+        assertEquals(Phase.PRO, app.settings().phase)
+        assertEquals("Finwise Pro · yearly", app.settings().planLabel)
+
+        app.debugForcePaywall()
+        app.purchaseMonthly()
+        assertEquals(Gate.APP, app.gate())
+        assertEquals(Phase.PRO, app.settings().phase)
+        assertEquals("Finwise Pro · monthly", app.settings().planLabel)
+    }
+
+    @Test
     fun homeLeadsWithTheTopTodoMove() {
         val app = newApp(MutableClock(10L))
         finishOnboarding(app)

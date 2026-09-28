@@ -30,6 +30,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTag
+import androidx.compose.ui.semantics.testTagsAsResourceId
+import androidx.compose.ui.semantics.text
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -149,14 +157,69 @@ fun IconBubble(icon: String) {
     }
 }
 
-data class NavTab(val id: String, val label: String, val icon: ImageVector)
+data class NavTab(val id: String, val label: String, val icon: ImageVector, val testTag: String)
 
 val NavTabs = listOf(
-    NavTab("HOME", "Home", Icons.Outlined.Home),
-    NavTab("MOVES", "Moves", Icons.AutoMirrored.Outlined.FormatListBulleted),
-    NavTab("ACCOUNTS", "Accounts", Icons.Outlined.AccountBalanceWallet),
-    NavTab("SETTINGS", "Settings", Icons.Outlined.Person),
+    NavTab("HOME", "Home", Icons.Outlined.Home, AutomationTags.NAV_HOME),
+    NavTab("MOVES", "Moves", Icons.AutoMirrored.Outlined.FormatListBulleted, AutomationTags.NAV_MOVES),
+    NavTab("ACCOUNTS", "Accounts", Icons.Outlined.AccountBalanceWallet, AutomationTags.NAV_ACCOUNTS),
+    NavTab("SETTINGS", "Settings", Icons.Outlined.Person, AutomationTags.NAV_SETTINGS),
 )
+
+/**
+ * Resource-ids UiAutomator / Appium see when [testTagsAsResourceId] is set.
+ * `viewIdResourceName` is the tag itself (for example `nav_moves`), not `package:id/…`.
+ */
+internal object AutomationTags {
+    const val NAV_HOME = "nav_home"
+    const val NAV_MOVES = "nav_moves"
+    const val NAV_ACCOUNTS = "nav_accounts"
+    const val NAV_SETTINGS = "nav_settings"
+
+    const val QA_TRIAL_PAYWALL = "qa_trial_paywall"
+    const val QA_SHOW_PAYWALL = "qa_show_paywall"
+    const val QA_RESTORE_TRIAL = "qa_restore_trial"
+    const val QA_SIMULATE_PRO = "qa_simulate_pro"
+    const val QA_CLEAR_OVERRIDE = "qa_clear_override"
+    const val QA_REPLAY_ONBOARDING = "qa_replay_onboarding"
+    const val QA_RETURN_TO_TRIAL = "qa_return_to_trial"
+
+    const val PAYWALL_CONTINUE_YEARLY = "paywall_continue_yearly"
+    const val PAYWALL_CONTINUE_MONTHLY = "paywall_continue_monthly"
+}
+
+/**
+ * Resource-id and content description for a container. Descendants stay in the tree.
+ */
+internal fun Modifier.automationNode(tag: String, description: String): Modifier =
+    semantics {
+        testTagsAsResourceId = true
+        testTag = tag
+        contentDescription = description
+    }
+
+/**
+ * Identifiers on the clickable node itself.
+ *
+ * [Modifier.clickable] merges descendants, and Compose then moves [contentDescription]
+ * onto a non-clickable child. [clearAndSetSemantics] keeps the description, the label
+ * text, and the click action on this node so UiAutomator can tap it. Place this
+ * modifier outside [androidx.compose.foundation.clickable]; touch handling stays there.
+ */
+internal fun Modifier.tappableAutomationNode(
+    tag: String,
+    description: String,
+    onActivate: () -> Unit,
+): Modifier = clearAndSetSemantics {
+    testTagsAsResourceId = true
+    testTag = tag
+    contentDescription = description
+    text = AnnotatedString(description)
+    onClick {
+        onActivate()
+        true
+    }
+}
 
 @Composable
 fun PillNav(selected: String, onSelect: (String) -> Unit, modifier: Modifier = Modifier) {
@@ -172,25 +235,37 @@ fun PillNav(selected: String, onSelect: (String) -> Unit, modifier: Modifier = M
             if (active) {
                 Row(
                     Modifier
+                        .tappableAutomationNode(tab.testTag, tab.label) { onSelect(tab.id) }
                         .clip(RoundedCornerShape(999.dp))
                         .background(AiColors.Nav)
                         .clickable { onSelect(tab.id) }
                         .padding(horizontal = 16.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(tab.icon, contentDescription = tab.label, tint = Color.White, modifier = Modifier.size(18.dp))
+                    Icon(
+                        tab.icon,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp),
+                    )
                     Spacer(Modifier.size(8.dp))
                     Text(tab.label, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                 }
             } else {
                 Box(
                     Modifier
+                        .tappableAutomationNode(tab.testTag, tab.label) { onSelect(tab.id) }
                         .size(44.dp)
                         .clip(CircleShape)
                         .clickable { onSelect(tab.id) },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(tab.icon, contentDescription = tab.label, tint = AiColors.Muted, modifier = Modifier.size(22.dp))
+                    Icon(
+                        tab.icon,
+                        contentDescription = null,
+                        tint = AiColors.Muted,
+                        modifier = Modifier.size(22.dp),
+                    )
                 }
             }
         }

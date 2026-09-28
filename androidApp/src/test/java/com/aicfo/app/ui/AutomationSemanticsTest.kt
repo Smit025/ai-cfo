@@ -1,0 +1,148 @@
+package com.aicfo.app.ui
+
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.test.assertContentDescriptionEquals
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import com.aicfo.shared.domain.AiCfoController
+import com.aicfo.shared.domain.AppClock
+import com.aicfo.shared.presentation.Gate
+import com.aicfo.shared.presentation.Phase
+import com.aicfo.shared.market.EmptyLocalStrings
+import com.aicfo.shared.market.Markets
+import com.aicfo.shared.security.MemoryLocalStore
+import com.aicfo.shared.security.MemoryTokenVault
+import org.junit.Assert.assertEquals
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [28])
+class AutomationSemanticsTest {
+    @get:Rule
+    val rule = createComposeRule()
+
+    @Test
+    fun pillTabsExposeTagDescriptionAndTextOnTheClickableChip() {
+        val selected = mutableStateOf("HOME")
+        rule.setContent {
+            PillNav(selected = selected.value, onSelect = { selected.value = it })
+        }
+
+        listOf(
+            AutomationTags.NAV_HOME to "Home",
+            AutomationTags.NAV_MOVES to "Moves",
+            AutomationTags.NAV_ACCOUNTS to "Accounts",
+            AutomationTags.NAV_SETTINGS to "Settings",
+        ).forEach { (tag, label) ->
+            rule.onNodeWithTag(tag)
+                .assertHasClickAction()
+                .assertContentDescriptionEquals(label)
+                .assertTextEquals(label)
+            rule.onAllNodesWithContentDescription(label).assertCountEquals(1)
+        }
+
+        rule.onNodeWithTag(AutomationTags.NAV_MOVES).performClick()
+        rule.runOnIdle { assertEquals("MOVES", selected.value) }
+        rule.onNodeWithTag(AutomationTags.NAV_ACCOUNTS).performClick()
+        rule.runOnIdle { assertEquals("ACCOUNTS", selected.value) }
+        rule.onNodeWithTag(AutomationTags.NAV_SETTINGS).performClick()
+        rule.runOnIdle { assertEquals("SETTINGS", selected.value) }
+    }
+
+    @Test
+    fun settingsQaBlockExposesStableTagsInDebug() {
+        val controller = AiCfoController(
+            vault = MemoryTokenVault(),
+            store = MemoryLocalStore(),
+            clock = object : AppClock {
+                override fun nowEpochMs(): Long = 10L
+            },
+            market = Markets.unitedStates(),
+            localStrings = EmptyLocalStrings,
+            debugBuild = true,
+        )
+        rule.setContent { SettingsScreen(controller, tick = 0) }
+
+        rule.onNodeWithTag(AutomationTags.QA_TRIAL_PAYWALL)
+            .assertContentDescriptionEquals("QA · trial / paywall")
+        rule.onNodeWithTag(AutomationTags.QA_SHOW_PAYWALL)
+            .assertHasClickAction()
+            .assertContentDescriptionEquals("Show paywall")
+            .assertTextEquals("Show paywall")
+        rule.onNodeWithTag(AutomationTags.QA_RESTORE_TRIAL)
+            .assertContentDescriptionEquals("Restore trial")
+        rule.onNodeWithTag(AutomationTags.QA_SIMULATE_PRO)
+            .assertContentDescriptionEquals("Simulate Pro")
+        rule.onNodeWithTag(AutomationTags.QA_CLEAR_OVERRIDE)
+            .assertContentDescriptionEquals("Clear QA override")
+        rule.onNodeWithTag(AutomationTags.QA_REPLAY_ONBOARDING)
+            .assertContentDescriptionEquals("Replay onboarding")
+    }
+
+    @Test
+    fun paywallCtasDismissTheHardPaywall() {
+        val controller = debugController()
+        repeat(8) {
+            if (controller.gate() != Gate.ONBOARDING) return@repeat
+            controller.primaryOnboarding()
+        }
+        controller.debugForcePaywall()
+        rule.setContent { PaywallScreen(controller, tick = 0) }
+
+        rule.onNodeWithTag(AutomationTags.PAYWALL_CONTINUE_YEARLY)
+            .assertHasClickAction()
+            .assertTextEquals("Continue · \$79/yr")
+            .assertContentDescriptionEquals("Continue · \$79/yr")
+        rule.onAllNodesWithText("Continue · \$79/yr").assertCountEquals(1)
+        rule.onNodeWithTag(AutomationTags.PAYWALL_CONTINUE_MONTHLY)
+            .assertTextEquals("Continue · \$9.99/mo")
+            .assertContentDescriptionEquals("Continue · \$9.99/mo")
+        rule.onAllNodesWithText("Continue · \$9.99/mo").assertCountEquals(1)
+
+        rule.onNodeWithTag(AutomationTags.QA_RETURN_TO_TRIAL)
+            .performScrollTo()
+            .assertTextEquals("QA: return to trial")
+            .performClick()
+        rule.runOnIdle {
+            assertEquals(Gate.APP, controller.gate())
+            assertEquals(Phase.TRIAL, controller.settings().phase)
+        }
+
+        controller.debugForcePaywall()
+        rule.onNodeWithTag(AutomationTags.PAYWALL_CONTINUE_YEARLY).performScrollTo().performClick()
+        rule.runOnIdle {
+            assertEquals(Gate.APP, controller.gate())
+            assertEquals(Phase.PRO, controller.settings().phase)
+        }
+
+        controller.debugForcePaywall()
+        rule.onNodeWithTag(AutomationTags.PAYWALL_CONTINUE_MONTHLY).performScrollTo().performClick()
+        rule.runOnIdle {
+            assertEquals(Gate.APP, controller.gate())
+            assertEquals(Phase.PRO, controller.settings().phase)
+            assertEquals("Finwise Pro · monthly", controller.settings().planLabel)
+        }
+    }
+
+    private fun debugController(): AiCfoController = AiCfoController(
+        vault = MemoryTokenVault(),
+        store = MemoryLocalStore(),
+        clock = object : AppClock {
+            override fun nowEpochMs(): Long = 10L
+        },
+        market = Markets.unitedStates(),
+        localStrings = EmptyLocalStrings,
+        debugBuild = true,
+    )
+}
