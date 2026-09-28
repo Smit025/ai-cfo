@@ -88,4 +88,19 @@ Native UI only (Jetpack Compose and SwiftUI). Shared code does not draw these.
 
 Soft-card tokens stay the app tokens: background `#F4F5F7`, white cards, Inter on Android, accent `#635BFF`, violet **F** mark.
 
-The handoff boards (phone, OTP, email, PIN setup, Face ID enable, cold unlock, settings) were the visual source. Those PNGs were not in the git tree, so they are not committed here.
+## Design references
+
+The session rules are in [`docs/design/auth/MARK-HANDOFF.md`](design/auth/MARK-HANDOFF.md).
+
+Robolectric drew the Android screens below (no emulator on this machine). They are the debug build, so Phone shows **Debug skip** and OTP shows **Fill debug code**. iOS Face ID enable is SwiftUI only and is not in these captures.
+
+| Screen | Implemented |
+| --- | --- |
+| Phone | [`docs/design/auth/implemented/01-phone.png`](design/auth/implemented/01-phone.png) |
+| OTP | [`docs/design/auth/implemented/02-otp.png`](design/auth/implemented/02-otp.png) |
+| Email | [`docs/design/auth/implemented/07-email.png`](design/auth/implemented/07-email.png) |
+| PIN setup | [`docs/design/auth/implemented/08-pin-setup.png`](design/auth/implemented/08-pin-setup.png) |
+| Cold unlock | [`docs/design/auth/implemented/05-cold-unlock.png`](design/auth/implemented/05-cold-unlock.png) |
+| Settings auth | [`docs/design/auth/implemented/06-settings-auth.png`](design/auth/implemented/06-settings-auth.png) |
+
+Sofia’s source boards (phone, OTP, email, PIN setup, Face ID enable, cold unlock, settings, collage) were attached to the review follow-up, but the PNG bytes were not on disk in this workspace — only the handoff markdown uploaded. Those originals are not in the tree. The handoff’s error states (`03-phone-error`, `04-otp-error`) were not in the attachment set.
