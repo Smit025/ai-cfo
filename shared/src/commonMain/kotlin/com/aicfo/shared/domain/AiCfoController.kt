@@ -1,6 +1,7 @@
 package com.aicfo.shared.domain
 
 import com.aicfo.shared.data.MayaStub
+import com.aicfo.shared.market.CopyKey
 import com.aicfo.shared.market.CopyResolver
 import com.aicfo.shared.market.EmptyLocalStrings
 import com.aicfo.shared.market.LocalStrings
@@ -224,6 +225,7 @@ class AiCfoController(
             name = profile.fullName,
             meta = "${profile.occupation} · ${profile.city}, ${profile.region}",
             initials = profile.initials,
+            brandTagline = copy.text(CopyKey.BRAND_TAGLINE),
             notificationsEnabled = notificationsEnabled(),
             biometricEnabled = biometricEnabled(),
             biometricHardware = biometricHardware,
@@ -238,6 +240,7 @@ class AiCfoController(
     fun lock(): LockModel {
         val hardware = biometricHardware
         return LockModel(
+            brand = copy.text(CopyKey.BRAND_TAGLINE),
             title = "Unlock Finwise",
             body = if (hardware) {
                 "Your moves stay on this phone. Confirm it's you to open the coach."

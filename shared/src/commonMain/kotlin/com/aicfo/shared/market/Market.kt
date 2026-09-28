@@ -27,6 +27,7 @@ object CopyKey {
     const val HOPE_OPEN: String = "hope.gympass.open"
     const val HOPE_DONE: String = "hope.gympass.done"
     const val MOVES_SUBTITLE: String = "moves.subtitle"
+    const val BRAND_TAGLINE: String = "brand.tagline"
 
     fun monthShort(month: Int): String = "month.short.$month"
 }
@@ -192,6 +193,7 @@ private val englishCopy: Map<String, String> = mapOf(
     CopyKey.HOPE_OPEN to "If unused Gympass stayed cancelled this year, you'd keep {amount} more",
     CopyKey.HOPE_DONE to "Gympass stays cancelled — about {amount} stays with you this year.",
     CopyKey.MOVES_SUBTITLE to "Ranked actions for {month} · {name}, {city}",
+    CopyKey.BRAND_TAGLINE to "Finwise — Your AI CFO",
     CopyKey.monthShort(1) to "Jan",
     CopyKey.monthShort(2) to "Feb",
     CopyKey.monthShort(3) to "Mar",

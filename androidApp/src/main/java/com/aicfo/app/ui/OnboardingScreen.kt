@@ -149,6 +149,8 @@ private fun WelcomeStep(model: OnboardingModel) {
             fontWeight = FontWeight.SemiBold,
             fontSize = 15.sp,
             letterSpacing = 0.3.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
         )
         Spacer(Modifier.height(14.dp))
         Text(

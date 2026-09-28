@@ -47,6 +47,13 @@ struct SettingsView: View {
                     SecondaryButton(label: "Lock now") { model.controller.lockNow() }
                 }
                 VStack(alignment: .leading, spacing: 8) {
+                    Text("About").font(Theme.semi(16)).foregroundStyle(Theme.text)
+                    Text(settings.brandTagline).font(Theme.body(15)).foregroundStyle(Theme.text)
+                }
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .softCard()
+                VStack(alignment: .leading, spacing: 8) {
                     Text("Privacy").font(Theme.semi(16)).foregroundStyle(Theme.text)
                     Text("Read-only linking. Bank passwords are never stored.").font(Theme.body(14)).foregroundStyle(Theme.muted)
                     Text("Link tokens stay in the Keychain on this iPhone.").font(Theme.body(14)).foregroundStyle(Theme.muted)

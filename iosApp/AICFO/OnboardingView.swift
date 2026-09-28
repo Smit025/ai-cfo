@@ -55,6 +55,7 @@ struct OnboardingView: View {
             Text(step.kicker)
                 .font(Theme.semi(15))
                 .foregroundStyle(Theme.accent)
+                .multilineTextAlignment(.center)
                 .padding(.top, 28)
             Text(step.title)
                 .font(Theme.title(32))

@@ -239,6 +239,7 @@ data class SettingsModel(
     val name: String,
     val meta: String,
     val initials: String,
+    val brandTagline: String,
     val notificationsEnabled: Boolean,
     val biometricEnabled: Boolean,
     val biometricHardware: Boolean,
@@ -250,6 +251,7 @@ data class SettingsModel(
 )
 
 data class LockModel(
+    val brand: String,
     val title: String,
     val body: String,
     val primaryCta: String,

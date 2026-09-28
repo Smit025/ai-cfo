@@ -1,5 +1,6 @@
 /* Localization hook. Keys match the shared catalog.
    Add ar.lproj / fr.lproj to override a market without rewriting screens. */
+"brand.tagline" = "Finwise — Your AI CFO";
 "reg.never_move" = "We never move money without you";
 "reg.credentials" = "Bank-grade encryption. We don't store your login credentials.";
 "reg.read_only" = "Read-only";

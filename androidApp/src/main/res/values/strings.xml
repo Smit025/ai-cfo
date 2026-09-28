@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Finwise</string>
+    <string name="brand_tagline">Finwise — Your AI CFO</string>
     <!--
       Localization hook. Keys match the shared catalog (dots become underscores).
       A values-ar / values-fr folder can override any key. Missing keys fall

@@ -253,7 +253,7 @@ internal object OnboardingUseCase {
         )
         return when (step) {
             0 -> empty.copy(
-                kicker = "Finwise",
+                kicker = copy.text(CopyKey.BRAND_TAGLINE),
                 title = "Your money,\nwhat to do next",
                 body = "A calm coach for this month's moves — not another budget dashboard.",
             )

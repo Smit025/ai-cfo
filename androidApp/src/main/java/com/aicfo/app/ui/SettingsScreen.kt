@@ -72,6 +72,10 @@ fun SettingsScreen(controller: AiCfoController, tick: Int) {
             SecondaryButton("Lock now") { controller.lockNow() }
         }
         Column(Modifier.fillMaxWidth().softCard().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("About", color = AiColors.Text, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+            Text(model.brandTagline, color = AiColors.Text, fontSize = 15.sp)
+        }
+        Column(Modifier.fillMaxWidth().softCard().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Privacy", color = AiColors.Text, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
             Text("Read-only linking. Bank passwords are never stored.", color = AiColors.Muted, fontSize = 14.sp)
             Text("Link tokens are encrypted in the Android Keystore.", color = AiColors.Muted, fontSize = 14.sp)

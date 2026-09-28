@@ -1,6 +1,6 @@
 # Finwise — Design one-pager
 
-Product name is **Finwise** (working title was AI CFO). Repo and bundle id are unchanged (`ai-cfo`, `com.aicfo.app`).
+Product name is **Finwise**. The locked brand line is **Finwise — Your AI CFO** (descriptor “Your AI CFO”). Repo and bundle id are unchanged (`ai-cfo`, `com.aicfo.app`). The launcher name stays Finwise.
 
 **Audience:** Sofia (product design) · Susmit review  
 **Status:** Look pack **v1.2** — Home IA **locked by Susmit** (wealth context + spend/save snapshot + moves). Soft-card craft still v1.1. Onboarding pack v1.1 stays.  
@@ -117,7 +117,7 @@ Onboarding HTML + PNGs live in `onboarding/`; re-shot via `cd onboarding && node
 
 | Screen | Primary copy | CTA |
 |--------|--------------|-----|
-| Welcome | “Your money, what to do next” · calm coach, not budget dashboard | Continue |
+| Welcome | Brand line **Finwise — Your AI CFO** · “Your money, what to do next” · calm coach, not budget dashboard | Continue |
 | Value | “We tell you what to do this month” · explicit: we don’t lead with budgets/charts/net-worth | Continue |
 | Connect | “We never move money without you” · **Read-only** badge · generic chips (Bank · Cards · Loans · Investments) — no trademarked logos | Connect securely · Skip for now |
 | Trial | Full moves · unlimited actions · all accounts · why+math · **No charge today · Cancel anytime · Then paywall** | Start free 30-day trial · Maybe later |
