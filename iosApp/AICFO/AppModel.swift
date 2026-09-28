@@ -2,6 +2,15 @@ import Foundation
 import LocalAuthentication
 import Shared
 
+/// Reads `Localizable.strings`. A missing key returns nil so the shared catalog is used.
+final class BundleLocalStrings: NSObject, LocalStrings {
+    func text(key: String) -> String? {
+        let value = Bundle.main.localizedString(forKey: key, value: "", table: nil)
+        if value.isEmpty || value == key { return nil }
+        return value
+    }
+}
+
 final class BridgeObserver: NSObject, AppObserver {
     var handler: () -> Void = {}
     func onChanged() { handler() }
@@ -17,7 +26,13 @@ final class AppModel: ObservableObject {
     init() {
         let vault = KeychainTokenVault()
         let store = DefaultsStore()
-        controller = AiCfoController(vault: vault, store: store, clock: SystemAppClock())
+        controller = AiCfoController(
+            vault: vault,
+            store: store,
+            clock: SystemAppClock(),
+            market: Markets.shared.unitedStates(),
+            localStrings: BundleLocalStrings()
+        )
         let bridge = BridgeObserver()
         observer = bridge
         bridge.handler = { [weak self] in

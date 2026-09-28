@@ -16,15 +16,33 @@ shared/       KMP — domain, use cases, Maya stub, entitlement, security contra
 
 | Module | What lives here |
 | --- | --- |
-| `shared/src/commonMain` | Profile, accounts, moves, onboarding, 30-day trial, paywall, QA overrides, redaction, link-token policy. Entry point: `AiCfoController`. |
-| `shared/src/androidMain` | Clock actual only (`System.currentTimeMillis`). |
-| `shared/src/iosMain` | Clock actual only (`NSDate`). |
+| `shared/src/commonMain` | Profile, accounts, moves, onboarding, 30-day trial, paywall, QA overrides, redaction, link-token policy, market packs. Entry point: `AiCfoController`. |
+| `shared/src/androidMain` | Clock and time-zone actuals (`System.currentTimeMillis`, `java.time`). |
+| `shared/src/iosMain` | Clock and time-zone actuals (`NSDate`, `NSTimeZone`). |
 | `androidApp` | Compose screens, Android Keystore token vault, biometric prompt, fold / large-width split. |
 | `iosApp` | SwiftUI screens, Keychain token vault, Face ID / Touch ID, large-width split. |
 
-`AiCfoController` is constructed by each app with a platform `TokenVault` and `LocalStore`. The UIs render the models it returns. They do not reimplement ranking, trial math, or the Maya plan.
+`AiCfoController` is constructed by each app with a platform `TokenVault`, `LocalStore`, and optional `LocalStrings`. The default market is the United States. The UIs render the models it returns. They do not reimplement ranking, trial math, or the Maya plan.
 
-Not in this MVP: budgets, charts, net-worth, P2P, tax filing, a free-form chat on Home, or live Plaid. Bank linking is a read-only stub.
+Not in this MVP: budgets, charts as the home story, P2P, tax filing, a free-form chat on Home, or live Plaid. Bank linking is a read-only stub. Canada, Europe, and the UAE are config stubs only — the shipped coach plan is still Maya in the US.
+
+## Markets
+
+New countries are a pack swap, not a rewrite. The shipped product is the US pack. `Markets.canada()`, `Markets.europe()`, and `Markets.uae()` exist so the seams are real, and `shipped` is false on those three.
+
+| Seam | US (shipped) | CA / EU / AE (stubs) |
+| --- | --- | --- |
+| `MarketConfig` | `en-US`, USD, `America/Chicago` (Maya is in Austin) | `en-CA` / CAD / `America/Toronto`; EUR / `Europe/Berlin` (one stand-in zone — a launch would split member states); `en-AE` / AED / `Asia/Dubai` |
+| `Money` | Minor units + ISO code. `$47 × 12` is `Money(4700, USD) * 12`, not string math. | Same type. CAD uses `CA$`, EUR uses `€`, AED uses `AED `. |
+| `LinkProvider` | `plaid`, read-only, also tagged for CA and EU | UAE uses `uae-local-rails` (local open-banking, not Plaid). No network calls. |
+| `RateMarket` | APR (`24.9% APR`) | UAE formats a profit rate. Do not treat APR as universal. |
+| `TaxNiche` | `us.estimated-tax`, **off**. Estimated tax stays in TaxVault. | Off. No personal income-tax niche in the UAE stub. |
+| `FeatureFlags` | Moves, bank link, investments, consumer debt, HYSA. Tax set-aside off. | UAE turns HYSA off until a savings product is specified. Idle-cash moves hide when that flag is off. |
+| Calendar | October 2026 is the plan month in `America/Chicago`. | `MarketCalendar` uses the pack zone. A Dubai midnight can still be September in Chicago. |
+
+Screen sentences for the US boards live in the shared English catalog (`CopyKey`). Android `res/values/strings.xml` and iOS `en.lproj/Localizable.strings` use the same keys (`reg.never_move` → `reg_never_move` on Android). A `values-ar` or `ar.lproj` folder overrides a key; a missing key falls through to the catalog. `AndroidLocalStrings` and `BundleLocalStrings` are the hooks the apps pass into `AiCfoController`.
+
+Prices live on the pack (`Money`), and the paywall labels are formatted from that money. The US prices stay $9.99/month and $79/year.
 
 ## Screens
 

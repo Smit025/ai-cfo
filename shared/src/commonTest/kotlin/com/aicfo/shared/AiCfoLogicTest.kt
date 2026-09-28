@@ -3,7 +3,7 @@ package com.aicfo.shared
 import com.aicfo.shared.domain.AiCfoController
 import com.aicfo.shared.domain.AppClock
 import com.aicfo.shared.domain.EntitlementPolicy
-import com.aicfo.shared.domain.MoneyMath
+import com.aicfo.shared.market.MoneyMath
 import com.aicfo.shared.domain.Pricing
 import com.aicfo.shared.presentation.Gate
 import com.aicfo.shared.presentation.MoveStatusCode

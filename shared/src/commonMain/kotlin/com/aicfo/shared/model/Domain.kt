@@ -1,5 +1,8 @@
 package com.aicfo.shared.model
 
+import com.aicfo.shared.market.CopyKey
+import com.aicfo.shared.market.Money
+
 internal enum class MoveKind {
     CANCEL_SUBSCRIPTION,
     EXTRA_DEBT_PAYMENT,
@@ -42,6 +45,7 @@ internal data class LinkedAccount(
     val id: String,
     val name: String,
     val maskLine: String,
+    val balance: Money,
     val balanceLabel: String,
     val group: AccountGroup,
     val initials: String,
@@ -100,8 +104,8 @@ internal fun Priority.wire(): String = name
 
 internal fun MoveStatus.wire(): String = name
 
-internal fun AccountGroup.title(): String = when (this) {
-    AccountGroup.CASH -> "CASH"
-    AccountGroup.CARDS_AND_LOANS -> "CARDS & LOANS"
-    AccountGroup.INVESTMENTS -> "INVESTMENTS"
+internal fun AccountGroup.copyKey(): String = when (this) {
+    AccountGroup.CASH -> CopyKey.GROUP_CASH
+    AccountGroup.CARDS_AND_LOANS -> CopyKey.GROUP_CARDS
+    AccountGroup.INVESTMENTS -> CopyKey.GROUP_INVESTMENTS
 }

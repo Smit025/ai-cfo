@@ -1,6 +1,15 @@
 package com.aicfo.shared.domain
 
 import com.aicfo.shared.data.MayaStub
+import com.aicfo.shared.market.CopyResolver
+import com.aicfo.shared.market.EmptyLocalStrings
+import com.aicfo.shared.market.LocalStrings
+import com.aicfo.shared.market.MarketCalendar
+import com.aicfo.shared.market.MarketPack
+import com.aicfo.shared.market.MarketSnapshot
+import com.aicfo.shared.market.Markets
+import com.aicfo.shared.market.MoneyFormat
+import com.aicfo.shared.market.snapshot
 import com.aicfo.shared.model.MoveKind
 import com.aicfo.shared.model.wire
 import com.aicfo.shared.presentation.AccountsModel
@@ -31,7 +40,17 @@ class AiCfoController(
     private val vault: TokenVault,
     private val store: LocalStore,
     private val clock: AppClock,
+    private val market: MarketPack,
+    private val localStrings: LocalStrings,
 ) {
+    /** US pack, shared English catalog. Platform string tables can override keys. */
+    constructor(
+        vault: TokenVault,
+        store: LocalStore,
+        clock: AppClock,
+    ) : this(vault, store, clock, Markets.unitedStates(), EmptyLocalStrings)
+
+    private val copy = CopyResolver(market.copy, localStrings)
     private val observers = mutableListOf<AppObserver>()
     private val statuses = mutableMapOf<String, String>()
     private val notes = mutableMapOf<String, String>()
@@ -86,7 +105,16 @@ class AiCfoController(
         return rows.firstOrNull { it.status == "TODO" }?.move?.id ?: rows.first().move.id
     }
 
-    fun onboarding(): OnboardingModel = OnboardingUseCase.build(onboardingStep, banksLinked())
+    fun market(): MarketSnapshot = market.snapshot()
+
+    fun planMonthIsNow(): Boolean = MarketCalendar.isMonth(
+        clock.nowEpochMs(),
+        market.config.timeZoneId,
+        market.config.planYear,
+        market.config.planMonth,
+    )
+
+    fun onboarding(): OnboardingModel = OnboardingUseCase.build(onboardingStep, banksLinked(), market, copy)
 
     fun advanceOnboarding() {
         if (!onboarding().canAdvance) return
@@ -144,16 +172,16 @@ class AiCfoController(
         publish()
     }
 
-    fun home(): HomeModel = HomeUseCase.build(resolved(), notificationsEnabled())
+    fun home(): HomeModel = HomeUseCase.build(resolved(), notificationsEnabled(), market, copy)
 
-    fun moves(): MovesModel = MovesUseCase.build(resolved())
+    fun moves(): MovesModel = MovesUseCase.build(resolved(), market, copy)
 
     fun detail(id: String): DetailModel? {
         val row = resolved().firstOrNull { it.move.id == id } ?: return null
         return DetailUseCase.build(row)
     }
 
-    fun accounts(): AccountsModel = AccountsUseCase.build(banksLinked())
+    fun accounts(): AccountsModel = AccountsUseCase.build(banksLinked(), copy)
 
     fun settings(): SettingsModel {
         val ent = entitlement()
@@ -187,7 +215,11 @@ class AiCfoController(
         )
     }
 
-    fun paywall(): PaywallModel = PaywallUseCase.build(entitlement().trialConsumed)
+    fun paywall(): PaywallModel = PaywallUseCase.build(
+        entitlement().trialConsumed,
+        MoneyFormat.standard(market.monthlyPrice),
+        MoneyFormat.standard(market.yearlyPrice),
+    )
 
     fun performPrimary(id: String): String {
         val move = MayaStub.moves.firstOrNull { it.id == id } ?: return ""
@@ -300,11 +332,9 @@ class AiCfoController(
         store.write(Keys.PLAN, plan)
         store.write(Keys.OVERRIDE, QaOverride.NONE)
         publish()
-        return if (plan == "YEARLY") {
-            "Subscribed · ${Pricing.YEARLY_LABEL}/year (simulated)."
-        } else {
-            "Subscribed · ${Pricing.MONTHLY_LABEL}/month (simulated)."
-        }
+        val price = if (plan == "YEARLY") market.yearlyPrice else market.monthlyPrice
+        val period = if (plan == "YEARLY") "year" else "month"
+        return "Subscribed · ${MoneyFormat.standard(price)}/$period (simulated)."
     }
 
     private fun setOverride(code: String) {
@@ -326,6 +356,8 @@ class AiCfoController(
         trialStartedAtMs = store.read(Keys.TRIAL_START)?.toLongOrNull(),
         overrideCode = store.read(Keys.OVERRIDE) ?: QaOverride.NONE,
         subscribedPlan = store.read(Keys.PLAN) ?: "NONE",
+        monthlyLabel = MoneyFormat.standard(market.monthlyPrice),
+        yearlyLabel = MoneyFormat.standard(market.yearlyPrice),
     )
 
     private fun onboardingComplete(): Boolean = store.read(Keys.ONBOARDING) == "true"

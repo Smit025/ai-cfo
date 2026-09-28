@@ -1,5 +1,8 @@
 package com.aicfo.shared.data
 
+import com.aicfo.shared.market.CurrencyCode
+import com.aicfo.shared.market.Money
+import com.aicfo.shared.market.MoneyFormat
 import com.aicfo.shared.model.AccountGroup
 import com.aicfo.shared.model.CoachMove
 import com.aicfo.shared.model.DetailCopy
@@ -16,7 +19,8 @@ import com.aicfo.shared.presentation.Tone
  * October 2026 coach plan for Maya Chen, freelance product designer in Austin.
  * Figures on the cards are the authored plan (they match the look pack).
  * Home v1.2 wealth and snapshot figures are the locked board, not a sum of the
- * linked balances. Gympass yearly savings are also checked by [com.aicfo.shared.domain.MoneyMath].
+ * linked balances. Amounts are [Money] in USD. Gympass yearly savings are
+ * [com.aicfo.shared.market.MoneyMath].
  */
 internal object MayaStub {
     val profile: Profile = Profile(
@@ -29,23 +33,27 @@ internal object MayaStub {
     )
 
     const val HOME_SUBTITLE: String = "Tuesday · Austin"
+    const val PLAN_YEAR: Int = 2026
+    const val PLAN_MONTH: Int = 10
     const val SAVINGS_LABEL: String = "Savings"
-    const val SAVINGS_AMOUNT: String = "\$8,420"
-    const val SAVINGS_DELTA: String = "↑ \$340 this month"
+    val SAVINGS: Money = usd(842_000)
+    val SAVINGS_DELTA: Money = usd(34_000)
     const val NET_WORTH_LABEL: String = "Net worth"
-    const val NET_WORTH_AMOUNT: String = "\$42.1k"
-    const val NET_WORTH_DELTA: String = "↑ 2.1% MoM"
-    const val RUNWAY: String = "47 days runway · quietly building"
+    val NET_WORTH: Money = usd(4_210_000)
     const val NEEDS_LABEL: String = "Needs"
-    const val NEEDS_AMOUNT: String = "\$2,840"
+    val NEEDS: Money = usd(284_000)
     const val NEEDS_CAPTION: String = "rent, groceries..."
     const val WANTS_LABEL: String = "Wants"
-    const val WANTS_AMOUNT: String = "\$620"
+    val WANTS: Money = usd(62_000)
     const val WANTS_CAPTION: String = "discretionary"
     const val SAVE_LABEL: String = "To save"
-    const val SAVE_AMOUNT: String = "\$890"
+    val TO_SAVE: Money = usd(89_000)
     const val SAVE_CAPTION: String = "left this month"
-    const val MOVES_SUBTITLE: String = "Ranked actions for Oct 2026 · Maya, Austin"
+    val GYMPASS_MONTHLY: Money = usd(4_700)
+    val CARD_SAVE: Money = usd(18_000)
+    val IDLE_MONTHLY: Money = usd(1_800)
+    val IDLE_CASH: Money = usd(420_000)
+    const val CAPITAL_ONE_APR_BPS: Int = 2_490
     const val SUMMARY_PILL: String = "October · 5 moves · ~\$265/mo upside"
     const val SECTION_TITLE: String = "This month's moves"
 
@@ -54,7 +62,8 @@ internal object MayaStub {
             id = "chase-checking",
             name = "Chase Checking",
             maskLine = "··4821 · 0.01% APY",
-            balanceLabel = "\$4,812",
+            balance = usd(481_200),
+            balanceLabel = MoneyFormat.standard(usd(481_200)),
             group = AccountGroup.CASH,
             initials = "CH",
             colorHex = "#2563EB",
@@ -63,7 +72,8 @@ internal object MayaStub {
             id = "chase-savings",
             name = "Chase Savings",
             maskLine = "··1190 · emergency",
-            balanceLabel = "\$2,400",
+            balance = usd(240_000),
+            balanceLabel = MoneyFormat.standard(usd(240_000)),
             group = AccountGroup.CASH,
             initials = "CH",
             colorHex = "#2563EB",
@@ -72,7 +82,8 @@ internal object MayaStub {
             id = "amex",
             name = "Amex Blue Cash",
             maskLine = "··1008 · due Oct 12",
-            balanceLabel = "\$1,240",
+            balance = usd(124_000),
+            balanceLabel = MoneyFormat.standard(usd(124_000)),
             group = AccountGroup.CARDS_AND_LOANS,
             initials = "AX",
             colorHex = "#2563EB",
@@ -81,7 +92,8 @@ internal object MayaStub {
             id = "capital-one",
             name = "Capital One Quicksilver",
             maskLine = "··4912 · 24.9% APR",
-            balanceLabel = "\$3,840",
+            balance = usd(384_000),
+            balanceLabel = MoneyFormat.standard(usd(384_000)),
             group = AccountGroup.CARDS_AND_LOANS,
             initials = "C1",
             colorHex = "#DC2626",
@@ -90,7 +102,8 @@ internal object MayaStub {
             id = "nelnet",
             name = "Nelnet Student Loan",
             maskLine = "Federal · 5.5%",
-            balanceLabel = "\$18,420",
+            balance = usd(1_842_000),
+            balanceLabel = MoneyFormat.standard(usd(1_842_000)),
             group = AccountGroup.CARDS_AND_LOANS,
             initials = "NL",
             colorHex = "#1E293B",
@@ -99,7 +112,8 @@ internal object MayaStub {
             id = "fidelity",
             name = "Fidelity Brokerage",
             maskLine = "··7743 · taxable",
-            balanceLabel = "\$6,890",
+            balance = usd(689_000),
+            balanceLabel = MoneyFormat.standard(usd(689_000)),
             group = AccountGroup.INVESTMENTS,
             initials = "FD",
             colorHex = "#059669",
@@ -113,7 +127,7 @@ internal object MayaStub {
             kind = MoveKind.CANCEL_SUBSCRIPTION,
             listTitle = "Cancel unused Gympass",
             homeTitle = "Cancel unused Gympass",
-            impact = "+\$47/mo",
+            impact = MoneyFormat.signedMonthly(GYMPASS_MONTHLY, "/mo"),
             tone = Tone.POSITIVE,
             priority = Priority.P1,
             status = MoveStatus.TODO,
@@ -149,7 +163,7 @@ internal object MayaStub {
             kind = MoveKind.EXTRA_DEBT_PAYMENT,
             listTitle = "Pay \$400 extra on Capital One",
             homeTitle = "Pay \$400 extra on Capital One",
-            impact = "Save \$180",
+            impact = "Save ${MoneyFormat.standard(CARD_SAVE)}",
             tone = Tone.POSITIVE,
             priority = Priority.P1,
             status = MoveStatus.TODO,
@@ -181,7 +195,7 @@ internal object MayaStub {
             kind = MoveKind.MOVE_IDLE_CASH,
             listTitle = "Move idle cash to HYSA",
             homeTitle = "Move \$4,200 idle cash to HYSA",
-            impact = "+\$18/mo",
+            impact = MoneyFormat.signedMonthly(IDLE_MONTHLY, "/mo"),
             tone = Tone.POSITIVE,
             priority = Priority.P2,
             status = MoveStatus.TODO,
@@ -240,7 +254,7 @@ internal object MayaStub {
             kind = MoveKind.REFINANCE_CHECK,
             listTitle = "Refinance student loan check",
             homeTitle = "Refinance student loan check",
-            impact = "~\$40/mo?",
+            impact = "${MoneyFormat.approx(usd(4_000))}/mo?",
             tone = Tone.POSITIVE,
             priority = Priority.P3,
             status = MoveStatus.SKIPPED,
@@ -345,3 +359,5 @@ private fun detail(
     freeUpValue = freeUpValue,
     facts = facts,
 )
+
+private fun usd(minor: Long): Money = Money(minor, CurrencyCode.USD)

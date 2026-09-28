@@ -1,0 +1,31 @@
+/* Localization hook. Keys match the shared catalog.
+   Add ar.lproj / fr.lproj to override a market without rewriting screens. */
+"reg.never_move" = "We never move money without you";
+"reg.credentials" = "Bank-grade encryption. We don't store your login credentials.";
+"reg.read_only" = "Read-only";
+"reg.link.ca" = "Read-only connection for Canadian institutions (Plaid). This market is not shipped.";
+"reg.link.eu" = "Read-only connection for European institutions (Plaid). This market is not shipped.";
+"reg.link.ae" = "Read-only connection via UAE open-banking rails. This market is not shipped.";
+"accounts.group.cash" = "CASH";
+"accounts.group.cards" = "CARDS & LOANS";
+"accounts.group.investments" = "INVESTMENTS";
+"money.per_month" = "/mo";
+"money.save" = "Save {amount}";
+"home.delta_up" = "↑ {amount} this month";
+"home.net_delta" = "↑ 2.1% MoM";
+"home.runway" = "47 days runway · quietly building";
+"hope.gympass.open" = "If unused Gympass stayed cancelled this year, you'd keep {amount} more";
+"hope.gympass.done" = "Gympass stays cancelled — about {amount} stays with you this year.";
+"moves.subtitle" = "Ranked actions for {month} · {name}, {city}";
+"month.short.1" = "Jan";
+"month.short.2" = "Feb";
+"month.short.3" = "Mar";
+"month.short.4" = "Apr";
+"month.short.5" = "May";
+"month.short.6" = "Jun";
+"month.short.7" = "Jul";
+"month.short.8" = "Aug";
+"month.short.9" = "Sep";
+"month.short.10" = "Oct";
+"month.short.11" = "Nov";
+"month.short.12" = "Dec";

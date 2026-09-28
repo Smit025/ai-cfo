@@ -1,8 +1,15 @@
 package com.aicfo.shared.domain
 
 import com.aicfo.shared.data.MayaStub
+import com.aicfo.shared.market.CopyKey
+import com.aicfo.shared.market.CopyResolver
+import com.aicfo.shared.market.FeatureFlags
+import com.aicfo.shared.market.MarketPack
+import com.aicfo.shared.market.MoneyFormat
+import com.aicfo.shared.market.MoneyMath
 import com.aicfo.shared.model.CoachMove
-import com.aicfo.shared.model.title
+import com.aicfo.shared.model.MoveKind
+import com.aicfo.shared.model.copyKey
 import com.aicfo.shared.model.wire
 import com.aicfo.shared.presentation.AccountGroupModel
 import com.aicfo.shared.presentation.AccountRowModel
@@ -26,10 +33,24 @@ internal data class ResolvedMove(
     val note: String,
 )
 
+internal fun moveVisible(kind: MoveKind, features: FeatureFlags): Boolean = when (kind) {
+    MoveKind.MOVE_IDLE_CASH -> features.moves && features.hysa
+    MoveKind.EXTRA_DEBT_PAYMENT -> features.moves && features.consumerDebt
+    MoveKind.CANCEL_SUBSCRIPTION,
+    MoveKind.PAY_RENT,
+    MoveKind.REFINANCE_CHECK,
+    -> features.moves
+}
+
 internal object HomeUseCase {
-    fun build(resolved: List<ResolvedMove>, notificationsOn: Boolean): HomeModel {
+    fun build(
+        resolved: List<ResolvedMove>,
+        notificationsOn: Boolean,
+        market: MarketPack,
+        copy: CopyResolver,
+    ): HomeModel {
         val todo = resolved
-            .filter { it.status == MoveStatusCode.TODO }
+            .filter { it.status == MoveStatusCode.TODO && moveVisible(it.move.kind, market.features) }
             .sortedBy { it.move.rank }
             .take(3)
         return HomeModel(
@@ -38,23 +59,23 @@ internal object HomeUseCase {
             initials = MayaStub.profile.initials,
             showNotificationDot = notificationsOn,
             savingsLabel = MayaStub.SAVINGS_LABEL,
-            savingsAmount = MayaStub.SAVINGS_AMOUNT,
-            savingsDelta = MayaStub.SAVINGS_DELTA,
+            savingsAmount = MoneyFormat.standard(MayaStub.SAVINGS),
+            savingsDelta = copy.text(CopyKey.HOME_DELTA_UP, mapOf("amount" to MoneyFormat.standard(MayaStub.SAVINGS_DELTA))),
             savingsUp = true,
             netWorthLabel = MayaStub.NET_WORTH_LABEL,
-            netWorthAmount = MayaStub.NET_WORTH_AMOUNT,
-            netWorthDelta = MayaStub.NET_WORTH_DELTA,
+            netWorthAmount = MoneyFormat.compact(MayaStub.NET_WORTH),
+            netWorthDelta = copy.text(CopyKey.HOME_NET_DELTA),
             netWorthUp = true,
-            runway = MayaStub.RUNWAY,
-            hope = hopeLine(resolved),
+            runway = copy.text(CopyKey.HOME_RUNWAY),
+            hope = hopeLine(resolved, copy),
             sectionTitle = MayaStub.SECTION_TITLE,
             seeAllLabel = "See all",
             emptyTitle = "You're clear this month",
             emptyBody = "Every open move is done or skipped. A new list lands at the start of next month.",
             snapshot = listOf(
-                HomeAmountModel(MayaStub.NEEDS_LABEL, MayaStub.NEEDS_AMOUNT, MayaStub.NEEDS_CAPTION, Tone.DEFAULT),
-                HomeAmountModel(MayaStub.WANTS_LABEL, MayaStub.WANTS_AMOUNT, MayaStub.WANTS_CAPTION, Tone.DEFAULT),
-                HomeAmountModel(MayaStub.SAVE_LABEL, MayaStub.SAVE_AMOUNT, MayaStub.SAVE_CAPTION, Tone.POSITIVE),
+                HomeAmountModel(MayaStub.NEEDS_LABEL, MoneyFormat.standard(MayaStub.NEEDS), MayaStub.NEEDS_CAPTION, Tone.DEFAULT),
+                HomeAmountModel(MayaStub.WANTS_LABEL, MoneyFormat.standard(MayaStub.WANTS), MayaStub.WANTS_CAPTION, Tone.DEFAULT),
+                HomeAmountModel(MayaStub.SAVE_LABEL, MoneyFormat.standard(MayaStub.TO_SAVE), MayaStub.SAVE_CAPTION, Tone.POSITIVE),
             ),
             moves = todo.map { row ->
                 HomeMoveModel(
@@ -73,22 +94,25 @@ internal object HomeUseCase {
      * Hope is the open Gympass year, or a calm confirmation once it is cancelled.
      * Keeping the subscription hides the line so Home does not scold.
      */
-    private fun hopeLine(resolved: List<ResolvedMove>): String {
+    private fun hopeLine(resolved: List<ResolvedMove>, copy: CopyResolver): String {
         val gympass = resolved.firstOrNull { it.move.id == "gympass" } ?: return ""
-        val yearly = MoneyMath.yearlyFromMonthlyCents(47_00L) / 100L
+        val yearly = MoneyMath.yearlyFromMonthly(MayaStub.GYMPASS_MONTHLY)
         return when (gympass.status) {
-            MoveStatusCode.TODO ->
-                "If unused Gympass stayed cancelled this year, you'd keep ~\$$yearly more"
-            MoveStatusCode.DONE ->
-                "Gympass stays cancelled — about \$$yearly stays with you this year."
+            MoveStatusCode.TODO -> copy.text(CopyKey.HOPE_OPEN, mapOf("amount" to MoneyFormat.approx(yearly)))
+            MoveStatusCode.DONE -> copy.text(CopyKey.HOPE_DONE, mapOf("amount" to MoneyFormat.standard(yearly)))
             else -> ""
         }
     }
 }
 
 internal object MovesUseCase {
-    fun build(resolved: List<ResolvedMove>): MovesModel {
-        val rows = resolved.sortedBy { it.move.rank }.map { row ->
+    fun build(resolved: List<ResolvedMove>, market: MarketPack, copy: CopyResolver): MovesModel {
+        val profile = MayaStub.profile
+        val month = "${copy.text(CopyKey.monthShort(market.config.planMonth))} ${market.config.planYear}"
+        val rows = resolved
+            .filter { moveVisible(it.move.kind, market.features) }
+            .sortedBy { it.move.rank }
+            .map { row ->
             MoveRowModel(
                 id = row.move.id,
                 rank = row.move.rank,
@@ -103,7 +127,10 @@ internal object MovesUseCase {
         }
         return MovesModel(
             title = MayaStub.SECTION_TITLE,
-            subtitle = MayaStub.MOVES_SUBTITLE,
+            subtitle = copy.text(
+                CopyKey.MOVES_SUBTITLE,
+                mapOf("month" to month, "name" to profile.firstName, "city" to profile.city),
+            ),
             summaryPill = MayaStub.SUMMARY_PILL,
             todoCount = rows.count { it.status == MoveStatusCode.TODO },
             doneCount = rows.count { it.status == MoveStatusCode.DONE },
@@ -151,7 +178,7 @@ internal object DetailUseCase {
 }
 
 internal object AccountsUseCase {
-    fun build(linked: Boolean): AccountsModel {
+    fun build(linked: Boolean, copy: CopyResolver): AccountsModel {
         val profile = MayaStub.profile
         val groups = if (!linked) {
             emptyList()
@@ -162,7 +189,7 @@ internal object AccountsUseCase {
                 .sortedBy { it.first.ordinal }
                 .map { (group, accounts) ->
                     AccountGroupModel(
-                        title = group.title(),
+                        title = copy.text(group.copyKey()),
                         accounts = accounts.map { account ->
                             AccountRowModel(
                                 id = account.id,
@@ -171,7 +198,7 @@ internal object AccountsUseCase {
                                 balance = account.balanceLabel,
                                 initials = account.initials,
                                 colorHex = account.colorHex,
-                                readOnlyLabel = "Read-only",
+                                readOnlyLabel = copy.text(CopyKey.REG_READ_ONLY),
                             )
                         },
                     )
@@ -195,7 +222,7 @@ internal object AccountsUseCase {
 }
 
 internal object OnboardingUseCase {
-    fun build(step: Int, banksLinked: Boolean): OnboardingModel {
+    fun build(step: Int, banksLinked: Boolean, market: MarketPack, copy: CopyResolver): OnboardingModel {
         val empty = OnboardingModel(
             step = step,
             stepCount = 4,
@@ -231,19 +258,19 @@ internal object OnboardingUseCase {
                     OnboardingCard(
                         title = "Cancel unused Gympass",
                         subtitle = "Last check-in 86 days ago",
-                        impact = "+\$47/mo",
+                        impact = MoneyFormat.signedMonthly(MayaStub.GYMPASS_MONTHLY, copy.text(CopyKey.MONEY_PER_MONTH)),
                         icon = "CLOCK",
                     ),
                     OnboardingCard(
                         title = "Pay expensive card debt",
-                        subtitle = "24.9% APR — kill interest first",
-                        impact = "Save \$180",
+                        subtitle = "${market.rates.format(MayaStub.CAPITAL_ONE_APR_BPS)} — kill interest first",
+                        impact = copy.text(CopyKey.MONEY_SAVE, mapOf("amount" to MoneyFormat.standard(MayaStub.CARD_SAVE))),
                         icon = "CARD",
                     ),
                     OnboardingCard(
                         title = "Park idle cash in HYSA",
-                        subtitle = "\$4,200 sitting at 0.01%",
-                        impact = "+\$18/mo",
+                        subtitle = "${MoneyFormat.standard(MayaStub.IDLE_CASH)} sitting at 0.01%",
+                        impact = MoneyFormat.signedMonthly(MayaStub.IDLE_MONTHLY, copy.text(CopyKey.MONEY_PER_MONTH)),
                         icon = "CASH",
                     ),
                 ),
@@ -254,9 +281,9 @@ internal object OnboardingUseCase {
                 body = "Link banks, cards, loans, and investments so we can surface this month's moves.",
                 primaryCta = "Connect securely",
                 secondaryCta = "Skip for now",
-                badge = "Read-only",
-                trustTitle = "We never move money without you",
-                trustBody = "Bank-grade encryption. We don't store your login credentials.",
+                badge = copy.text(CopyKey.REG_READ_ONLY),
+                trustTitle = copy.text(CopyKey.REG_NEVER_MOVE),
+                trustBody = copy.text(market.config.disclosureKey),
                 sectionLabel = "WHAT YOU CAN CONNECT",
                 connectTypes = listOf(
                     OnboardingCard("Bank", "Checking · Savings", "", "BANK"),
@@ -306,17 +333,17 @@ internal object OnboardingUseCase {
 }
 
 internal object PaywallUseCase {
-    fun build(trialConsumed: Boolean): PaywallModel = PaywallModel(
+    fun build(trialConsumed: Boolean, monthlyLabel: String, yearlyLabel: String): PaywallModel = PaywallModel(
         title = if (trialConsumed) "Your 30-day Pro trial has ended" else "AI CFO Pro",
         lede = "The monthly action coach stays on Pro. Specific moves, the math, and a next step — not a free dashboard.",
-        monthlyPrice = Pricing.MONTHLY_LABEL,
+        monthlyPrice = monthlyLabel,
         monthlyPeriod = "/ month",
-        yearlyPrice = Pricing.YEARLY_LABEL,
+        yearlyPrice = yearlyLabel,
         yearlyPeriod = "/ year",
         yearlyNote = "Best value",
         finePrint = "No free plan after the trial. Purchases in this build are simulated.",
-        monthlyCta = "Continue · ${Pricing.MONTHLY_LABEL}/mo",
-        yearlyCta = "Continue · ${Pricing.YEARLY_LABEL}/yr",
+        monthlyCta = "Continue · $monthlyLabel/mo",
+        yearlyCta = "Continue · $yearlyLabel/yr",
     )
 }
 
