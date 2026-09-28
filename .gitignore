@@ -1,0 +1,17 @@
+.gradle/
+.kotlin/
+build/
+**/build/
+local.properties
+.idea/
+*.iml
+.DS_Store
+captures/
+*.apk
+*.aab
+*.ap_
+*.hprof
+iosApp/**/xcuserdata/
+iosApp/**/DerivedData/
+*.xcuserstate
+.externalNativeBuild/

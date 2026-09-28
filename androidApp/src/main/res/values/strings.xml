@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Finwise</string>
+    <string name="brand_tagline">Finwise — Your AI CFO</string>
+    <!--
+      Localization hook. Keys match the shared catalog (dots become underscores).
+      A values-ar / values-fr folder can override any key. Missing keys fall
+      through to the US market pack in shared code.
+    -->
+    <string name="reg_never_move">We never move money without you</string>
+    <string name="reg_credentials">Bank-grade encryption. We don\'t store your login credentials.</string>
+    <string name="reg_read_only">Read-only</string>
+    <string name="reg_link_ca">Read-only connection for Canadian institutions (Plaid). This market is not shipped.</string>
+    <string name="reg_link_eu">Read-only connection for European institutions (Plaid). This market is not shipped.</string>
+    <string name="reg_link_ae">Read-only connection via UAE open-banking rails. This market is not shipped.</string>
+    <string name="accounts_group_cash">CASH</string>
+    <string name="accounts_group_cards">CARDS &amp; LOANS</string>
+    <string name="accounts_group_investments">INVESTMENTS</string>
+    <string name="money_per_month">/mo</string>
+    <string name="money_save">Save {amount}</string>
+    <string name="home_delta_up">↑ {amount} this month</string>
+    <string name="home_net_delta">↑ 2.1% MoM</string>
+    <string name="home_runway">47 days runway · quietly building</string>
+    <string name="hope_gympass_open">If unused Gympass stayed cancelled this year, you\'d keep {amount} more</string>
+    <string name="hope_gympass_done">Gympass stays cancelled — about {amount} stays with you this year.</string>
+    <string name="moves_subtitle">Ranked actions for {month} · {name}, {city}</string>
+    <string name="month_short_1">Jan</string>
+    <string name="month_short_2">Feb</string>
+    <string name="month_short_3">Mar</string>
+    <string name="month_short_4">Apr</string>
+    <string name="month_short_5">May</string>
+    <string name="month_short_6">Jun</string>
+    <string name="month_short_7">Jul</string>
+    <string name="month_short_8">Aug</string>
+    <string name="month_short_9">Sep</string>
+    <string name="month_short_10">Oct</string>
+    <string name="month_short_11">Nov</string>
+    <string name="month_short_12">Dec</string>
+</resources>

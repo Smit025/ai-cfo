@@ -1,0 +1,349 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A1CF00000000000000000002 /* AICFOApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1CF00000000000000000001 /* AICFOApp.swift */; };
+		A1CF00000000000000000004 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1CF00000000000000000003 /* AppModel.swift */; };
+		A1CF00000000000000000006 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1CF00000000000000000005 /* Theme.swift */; };
+		A1CF00000000000000000008 /* KeychainTokenVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1CF00000000000000000007 /* KeychainTokenVault.swift */; };
+		A1CF00000000000000000010 /* DefaultsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1CF00000000000000000009 /* DefaultsStore.swift */; };
+		A1CF00000000000000000012 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1CF00000000000000000011 /* RootView.swift */; };
+		A1CF00000000000000000014 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1CF00000000000000000013 /* OnboardingView.swift */; };
+		A1CF00000000000000000016 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1CF00000000000000000015 /* HomeView.swift */; };
+		A1CF00000000000000000018 /* MovesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1CF00000000000000000017 /* MovesView.swift */; };
+		A1CF00000000000000000020 /* ActionDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1CF00000000000000000019 /* ActionDetailView.swift */; };
+		A1CF00000000000000000022 /* AccountsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1CF00000000000000000021 /* AccountsView.swift */; };
+		A1CF00000000000000000024 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1CF00000000000000000023 /* SettingsView.swift */; };
+		A1CF00000000000000000026 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1CF00000000000000000025 /* PaywallView.swift */; };
+		A1CF00000000000000000028 /* LockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1CF00000000000000000027 /* LockView.swift */; };
+		A1CF00000000000000000030 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1CF00000000000000000029 /* Assets.xcassets */; };
+		A1CF00000000000000000051 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = A1CF00000000000000000050 /* Localizable.strings */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A1CF00000000000000000001 /* AICFOApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AICFOApp.swift; sourceTree = "<group>"; };
+		A1CF00000000000000000003 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		A1CF00000000000000000005 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		A1CF00000000000000000007 /* KeychainTokenVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainTokenVault.swift; sourceTree = "<group>"; };
+		A1CF00000000000000000009 /* DefaultsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultsStore.swift; sourceTree = "<group>"; };
+		A1CF00000000000000000011 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		A1CF00000000000000000013 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		A1CF00000000000000000015 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		A1CF00000000000000000017 /* MovesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MovesView.swift; sourceTree = "<group>"; };
+		A1CF00000000000000000019 /* ActionDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionDetailView.swift; sourceTree = "<group>"; };
+		A1CF00000000000000000021 /* AccountsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountsView.swift; sourceTree = "<group>"; };
+		A1CF00000000000000000023 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		A1CF00000000000000000025 /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
+		A1CF00000000000000000027 /* LockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LockView.swift; sourceTree = "<group>"; };
+		A1CF00000000000000000029 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A1CF00000000000000000031 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A1CF00000000000000000050 /* Localizable.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = Localizable.strings; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
+		A1CF00000000000000000032 /* AICFO.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AICFO.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A1CF00000000000000000035 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A1CF00000000000000000037 /* AICFO */ = {
+			isa = PBXGroup;
+			children = (
+				A1CF00000000000000000001 /* AICFOApp.swift */,
+				A1CF00000000000000000003 /* AppModel.swift */,
+				A1CF00000000000000000005 /* Theme.swift */,
+				A1CF00000000000000000007 /* KeychainTokenVault.swift */,
+				A1CF00000000000000000009 /* DefaultsStore.swift */,
+				A1CF00000000000000000011 /* RootView.swift */,
+				A1CF00000000000000000013 /* OnboardingView.swift */,
+				A1CF00000000000000000015 /* HomeView.swift */,
+				A1CF00000000000000000017 /* MovesView.swift */,
+				A1CF00000000000000000019 /* ActionDetailView.swift */,
+				A1CF00000000000000000021 /* AccountsView.swift */,
+				A1CF00000000000000000023 /* SettingsView.swift */,
+				A1CF00000000000000000025 /* PaywallView.swift */,
+				A1CF00000000000000000027 /* LockView.swift */,
+				A1CF00000000000000000029 /* Assets.xcassets */,
+				A1CF00000000000000000050 /* Localizable.strings */,
+				A1CF00000000000000000031 /* Info.plist */,
+			);
+			path = AICFO;
+			sourceTree = "<group>";
+		};
+		A1CF00000000000000000038 = {
+			isa = PBXGroup;
+			children = (
+				A1CF00000000000000000037 /* AICFO */,
+				A1CF00000000000000000039 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A1CF00000000000000000039 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A1CF00000000000000000032 /* AICFO.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A1CF00000000000000000040 /* AICFO */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1CF00000000000000000046 /* Build configuration list for PBXNativeTarget "AICFO" */;
+			buildPhases = (
+				A1CF00000000000000000036 /* Compile Kotlin Framework */,
+				A1CF00000000000000000033 /* Sources */,
+				A1CF00000000000000000035 /* Frameworks */,
+				A1CF00000000000000000034 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = AICFO;
+			productName = AICFO;
+			productReference = A1CF00000000000000000032 /* AICFO.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A1CF00000000000000000041 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					A1CF00000000000000000040 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+				};
+			};
+			buildConfigurationList = A1CF00000000000000000047 /* Build configuration list for PBXProject "AICFO" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A1CF00000000000000000038;
+			productRefGroup = A1CF00000000000000000039 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A1CF00000000000000000040 /* AICFO */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A1CF00000000000000000034 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1CF00000000000000000030 /* Assets.xcassets in Resources */,
+				A1CF00000000000000000051 /* Localizable.strings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		A1CF00000000000000000036 /* Compile Kotlin Framework */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Compile Kotlin Framework";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\nif [ \"YES\" = \"$OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED\" ]; then\n  echo \"Skipping Gradle build task invocation due to OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED environment variable set to YES\"\n  exit 0\nfi\ncd \"$SRCROOT/..\"\n./gradlew :shared:embedAndSignAppleFrameworkForXcode\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A1CF00000000000000000033 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1CF00000000000000000002 /* AICFOApp.swift in Sources */,
+				A1CF00000000000000000004 /* AppModel.swift in Sources */,
+				A1CF00000000000000000006 /* Theme.swift in Sources */,
+				A1CF00000000000000000008 /* KeychainTokenVault.swift in Sources */,
+				A1CF00000000000000000010 /* DefaultsStore.swift in Sources */,
+				A1CF00000000000000000012 /* RootView.swift in Sources */,
+				A1CF00000000000000000014 /* OnboardingView.swift in Sources */,
+				A1CF00000000000000000016 /* HomeView.swift in Sources */,
+				A1CF00000000000000000018 /* MovesView.swift in Sources */,
+				A1CF00000000000000000020 /* ActionDetailView.swift in Sources */,
+				A1CF00000000000000000022 /* AccountsView.swift in Sources */,
+				A1CF00000000000000000024 /* SettingsView.swift in Sources */,
+				A1CF00000000000000000026 /* PaywallView.swift in Sources */,
+				A1CF00000000000000000028 /* LockView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A1CF00000000000000000044 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_DYNAMIC_NO_PIC = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		A1CF00000000000000000045 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		A1CF00000000000000000042 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
+				);
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = AICFO/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					Shared,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.aicfo.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		A1CF00000000000000000043 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
+				);
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = AICFO/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					Shared,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.aicfo.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A1CF00000000000000000047 /* Build configuration list for PBXProject "AICFO" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1CF00000000000000000044 /* Debug */,
+				A1CF00000000000000000045 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A1CF00000000000000000046 /* Build configuration list for PBXNativeTarget "AICFO" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1CF00000000000000000042 /* Debug */,
+				A1CF00000000000000000043 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A1CF00000000000000000041 /* Project object */;
+}
