@@ -1,6 +1,11 @@
 package com.aicfo.app.ui
 
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHasClickAction
@@ -11,15 +16,21 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeDown
 import com.aicfo.shared.domain.AiCfoController
 import com.aicfo.shared.domain.AppClock
+import com.aicfo.shared.domain.AppObserver
 import com.aicfo.shared.presentation.Gate
 import com.aicfo.shared.presentation.Phase
+import com.aicfo.shared.sync.SyncStatus
+import com.aicfo.shared.sync.SyncTrigger
 import com.aicfo.shared.market.EmptyLocalStrings
 import com.aicfo.shared.market.Markets
 import com.aicfo.shared.security.MemoryLocalStore
 import com.aicfo.shared.security.MemoryTokenVault
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -88,6 +99,57 @@ class AutomationSemanticsTest {
             .assertContentDescriptionEquals("Clear QA override")
         rule.onNodeWithTag(AutomationTags.QA_REPLAY_ONBOARDING)
             .assertContentDescriptionEquals("Replay onboarding")
+        rule.onNodeWithTag(AutomationTags.QA_SIMULATE_RECONNECT)
+            .performScrollTo()
+            .assertHasClickAction()
+            .assertContentDescriptionEquals("Simulate bank reconnect")
+            .performClick()
+        rule.runOnIdle {
+            assertTrue(controller.syncStatus() is SyncStatus.NeedsReauth)
+        }
+    }
+
+    @Test
+    fun accountsAndHomeShowFreshnessAndReconnect() {
+        val controller = debugController()
+        assertTrue(controller.connectReadOnlyStub())
+        rule.setContent {
+            var tick by remember { mutableIntStateOf(0) }
+            DisposableEffect(controller) {
+                val observer = object : AppObserver {
+                    override fun onChanged() {
+                        tick += 1
+                    }
+                }
+                controller.addObserver(observer)
+                onDispose { controller.removeObserver(observer) }
+            }
+            AccountsScreen(controller, tick)
+        }
+        rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS).assertTextEquals("Updated just now")
+        rule.runOnIdle { controller.debugSimulateNeedsReauth() }
+        rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS_ACTION)
+            .assertTextEquals("Reconnect")
+            .performClick()
+        rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS).assertTextEquals("Updated just now")
+        rule.runOnIdle {
+            assertTrue(controller.syncStatus() is SyncStatus.Success)
+        }
+
+        rule.onNodeWithTag(AutomationTags.ACCOUNTS_PULL).performTouchInput {
+            swipeDown(startY = 80f, endY = 700f, durationMillis = 200)
+        }
+        rule.runOnIdle {
+            assertEquals(SyncTrigger.PullToRefresh, controller.lastSyncTrigger())
+        }
+    }
+
+    @Test
+    fun homeWealthStripShowsTheSameFreshnessLine() {
+        val controller = debugController()
+        assertTrue(controller.connectReadOnlyStub())
+        rule.setContent { HomeScreen(controller, tick = 0, wide = false) {} }
+        rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS).assertTextEquals("Updated just now")
     }
 
     @Test

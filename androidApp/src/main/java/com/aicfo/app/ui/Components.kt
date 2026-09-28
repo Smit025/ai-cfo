@@ -24,6 +24,11 @@ import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,6 +49,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aicfo.app.theme.AiColors
 import com.aicfo.shared.presentation.Tone
+import com.aicfo.shared.sync.SyncCode
+import kotlinx.coroutines.delay
 
 fun Modifier.softCard(radius: Dp = 24.dp, color: Color = AiColors.Card): Modifier {
     val shape = RoundedCornerShape(radius)
@@ -182,7 +189,11 @@ internal object AutomationTags {
     const val QA_SIMULATE_PRO = "qa_simulate_pro"
     const val QA_CLEAR_OVERRIDE = "qa_clear_override"
     const val QA_REPLAY_ONBOARDING = "qa_replay_onboarding"
+    const val QA_SIMULATE_RECONNECT = "qa_simulate_reconnect"
     const val QA_RETURN_TO_TRIAL = "qa_return_to_trial"
+    const val BANK_FRESHNESS = "bank_freshness"
+    const val BANK_FRESHNESS_ACTION = "bank_freshness_action"
+    const val ACCOUNTS_PULL = "accounts_pull"
 
     const val PAYWALL_CONTINUE_YEARLY = "paywall_continue_yearly"
     const val PAYWALL_CONTINUE_MONTHLY = "paywall_continue_monthly"
@@ -312,6 +323,59 @@ fun SectionLabel(text: String) {
         fontWeight = FontWeight.SemiBold,
         letterSpacing = 1.1.sp,
     )
+}
+
+@Composable
+fun rememberFreshnessTick(): Int {
+    var tick by remember { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(30_000)
+            tick += 1
+        }
+    }
+    return tick
+}
+
+@Composable
+fun FreshnessLine(
+    label: String,
+    action: String,
+    code: String,
+    onAction: () -> Unit,
+) {
+    if (label.isEmpty()) return
+    val color = when (code) {
+        SyncCode.NEEDS_REAUTH -> AiColors.Danger
+        SyncCode.FAILED -> AiColors.Warning
+        else -> AiColors.Muted
+    }
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            label,
+            color = color,
+            fontSize = 12.sp,
+            lineHeight = 16.sp,
+            modifier = Modifier
+                .weight(1f)
+                .semantics {
+                    testTagsAsResourceId = true
+                    testTag = AutomationTags.BANK_FRESHNESS
+                },
+        )
+        if (action.isNotEmpty()) {
+            Text(
+                action,
+                color = AiColors.Accent,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier
+                    .tappableAutomationNode(AutomationTags.BANK_FRESHNESS_ACTION, action, onAction)
+                    .clickable(onClick = onAction)
+                    .padding(start = 8.dp, top = 2.dp, bottom = 2.dp),
+            )
+        }
+    }
 }
 
 @Composable

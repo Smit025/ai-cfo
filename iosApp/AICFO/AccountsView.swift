@@ -1,16 +1,27 @@
+import Combine
 import SwiftUI
 import Shared
 
 struct AccountsView: View {
     @EnvironmentObject private var model: AppModel
+    @State private var freshnessTick = Date()
 
     var body: some View {
         let accounts = model.controller.accounts()
         let _ = model.revision
+        let _ = freshnessTick
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 Text(accounts.title).font(Theme.title(32)).foregroundStyle(Theme.text)
                 Text(accounts.subtitle).font(Theme.body(14)).foregroundStyle(Theme.muted)
+                if !accounts.freshnessLabel.isEmpty {
+                    FreshnessLine(
+                        label: accounts.freshnessLabel,
+                        action: accounts.syncActionLabel,
+                        code: accounts.syncCode,
+                        onAction: { model.performSyncAction(code: accounts.syncCode) }
+                    )
+                }
                 HStack(alignment: .top, spacing: 10) {
                     Image(systemName: "lock")
                         .foregroundStyle(Theme.muted)
@@ -72,5 +83,7 @@ struct AccountsView: View {
             .padding(.top, 8)
             .padding(.bottom, 120)
         }
+        .refreshable { await model.pullToRefresh() }
+        .onReceive(Timer.publish(every: 30, on: .main, in: .common).autoconnect()) { freshnessTick = $0 }
     }
 }

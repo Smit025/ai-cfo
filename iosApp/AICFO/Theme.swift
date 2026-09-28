@@ -154,6 +154,39 @@ struct PillNav: View {
     }
 }
 
+struct FreshnessLine: View {
+    let label: String
+    let action: String
+    let code: String
+    let onAction: () -> Void
+
+    var body: some View {
+        if !label.isEmpty {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(label)
+                    .font(Theme.body(12))
+                    .foregroundStyle(color)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if !action.isEmpty {
+                    Button(action, action: onAction)
+                        .font(Theme.semi(13))
+                        .foregroundStyle(Theme.accent)
+                        .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    private var color: Color {
+        switch code {
+        case "NEEDS_REAUTH": return Theme.danger
+        case "FAILED": return Theme.warning
+        default: return Theme.muted
+        }
+    }
+}
+
 struct ReadOnlyChip: View {
     var body: some View {
         HStack(spacing: 6) {

@@ -15,23 +15,42 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTag
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aicfo.app.theme.AiColors
 import com.aicfo.app.theme.parseHex
 import com.aicfo.shared.domain.AiCfoController
+import com.aicfo.shared.sync.SyncCode
+import com.aicfo.shared.sync.SyncTrigger
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountsScreen(controller: AiCfoController, tick: Int) {
-    val model = remember(tick) { controller.accounts() }
+    val freshnessTick = rememberFreshnessTick()
+    val model = remember(tick, freshnessTick) { controller.accounts() }
+    PullToRefreshBox(
+        isRefreshing = model.syncCode == SyncCode.SYNCING,
+        onRefresh = { controller.refreshAccounts(SyncTrigger.PullToRefresh) },
+        modifier = Modifier
+            .fillMaxSize()
+            .semantics {
+                testTagsAsResourceId = true
+                testTag = AutomationTags.ACCOUNTS_PULL
+            },
+    ) {
     LazyColumn(
         Modifier.fillMaxSize().padding(horizontal = 20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -40,6 +59,20 @@ fun AccountsScreen(controller: AiCfoController, tick: Int) {
             Spacer(Modifier.height(8.dp))
             Text(model.title, color = AiColors.Text, fontSize = 32.sp, fontWeight = FontWeight.Bold)
             Text(model.subtitle, color = AiColors.Muted, fontSize = 14.sp)
+            if (model.freshnessLabel.isNotEmpty()) {
+                Spacer(Modifier.height(8.dp))
+                FreshnessLine(
+                    label = model.freshnessLabel,
+                    action = model.syncActionLabel,
+                    code = model.syncCode,
+                    onAction = {
+                        when (model.syncCode) {
+                            SyncCode.NEEDS_REAUTH -> controller.reconnectBank()
+                            SyncCode.FAILED -> controller.refreshAccounts(SyncTrigger.Manual)
+                        }
+                    },
+                )
+            }
             Spacer(Modifier.height(14.dp))
             Row(
                 Modifier.fillMaxWidth().softCard(radius = 18.dp).padding(14.dp),
@@ -104,5 +137,6 @@ fun AccountsScreen(controller: AiCfoController, tick: Int) {
             }
         }
         item { Spacer(Modifier.height(120.dp)) }
+    }
     }
 }

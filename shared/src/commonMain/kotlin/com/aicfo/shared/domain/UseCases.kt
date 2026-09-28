@@ -5,12 +5,16 @@ import com.aicfo.shared.market.CopyKey
 import com.aicfo.shared.market.CopyResolver
 import com.aicfo.shared.market.FeatureFlags
 import com.aicfo.shared.market.MarketPack
+import com.aicfo.shared.market.Money
 import com.aicfo.shared.market.MoneyFormat
 import com.aicfo.shared.market.MoneyMath
+import com.aicfo.shared.model.AccountGroup
 import com.aicfo.shared.model.CoachMove
 import com.aicfo.shared.model.MoveKind
 import com.aicfo.shared.model.copyKey
 import com.aicfo.shared.model.wire
+import com.aicfo.shared.sync.SyncLine
+import com.aicfo.shared.sync.SyncedAccount
 import com.aicfo.shared.presentation.AccountGroupModel
 import com.aicfo.shared.presentation.AccountRowModel
 import com.aicfo.shared.presentation.AccountsModel
@@ -48,6 +52,7 @@ internal object HomeUseCase {
         notificationsOn: Boolean,
         market: MarketPack,
         copy: CopyResolver,
+        sync: SyncLine,
     ): HomeModel {
         val todo = resolved
             .filter { it.status == MoveStatusCode.TODO && moveVisible(it.move.kind, market.features) }
@@ -87,6 +92,10 @@ internal object HomeUseCase {
                     icon = row.move.icon,
                 )
             },
+            freshnessLabel = sync.freshnessLabel,
+            syncCode = sync.syncCode,
+            syncActionLabel = sync.syncActionLabel,
+            syncStale = sync.syncStale,
         )
     }
 
@@ -178,31 +187,36 @@ internal object DetailUseCase {
 }
 
 internal object AccountsUseCase {
-    fun build(linked: Boolean, copy: CopyResolver, linkError: String): AccountsModel {
+    fun build(
+        linked: Boolean,
+        copy: CopyResolver,
+        linkError: String,
+        accounts: List<SyncedAccount>,
+        sync: SyncLine,
+    ): AccountsModel {
         val profile = MayaStub.profile
+        val readOnly = copy.text(CopyKey.REG_READ_ONLY)
+        val grouped = accounts.groupBy { it.group }
+        val ordered = grouped.keys.sortedBy { groupOrder(it) }
         val groups = if (!linked) {
             emptyList()
         } else {
-            MayaStub.accounts
-                .groupBy { it.group }
-                .toList()
-                .sortedBy { it.first.ordinal }
-                .map { (group, accounts) ->
-                    AccountGroupModel(
-                        title = copy.text(group.copyKey()),
-                        accounts = accounts.map { account ->
-                            AccountRowModel(
-                                id = account.id,
-                                name = account.name,
-                                detail = account.maskLine,
-                                balance = account.balanceLabel,
-                                initials = account.initials,
-                                colorHex = account.colorHex,
-                                readOnlyLabel = copy.text(CopyKey.REG_READ_ONLY),
-                            )
-                        },
-                    )
-                }
+            ordered.map { group ->
+                AccountGroupModel(
+                    title = groupTitle(group, copy),
+                    accounts = grouped.getValue(group).map { account ->
+                        AccountRowModel(
+                            id = account.id,
+                            name = account.name,
+                            detail = account.maskLine,
+                            balance = balanceLabel(account),
+                            initials = account.initials,
+                            colorHex = account.colorHex,
+                            readOnlyLabel = readOnly,
+                        )
+                    },
+                )
+            }
         }
         return AccountsModel(
             title = "Accounts",
@@ -218,7 +232,26 @@ internal object AccountsUseCase {
             emptyCta = "Link read-only sample",
             linkError = linkError,
             groups = groups,
+            freshnessLabel = sync.freshnessLabel,
+            syncCode = sync.syncCode,
+            syncActionLabel = sync.syncActionLabel,
+            syncStale = sync.syncStale,
         )
+    }
+
+    private fun groupOrder(group: String): Int {
+        val known = runCatching { AccountGroup.valueOf(group) }.getOrNull()
+        return known?.ordinal ?: (AccountGroup.entries.size + 1)
+    }
+
+    private fun groupTitle(group: String, copy: CopyResolver): String {
+        val known = runCatching { AccountGroup.valueOf(group) }.getOrNull()
+        return if (known != null) copy.text(known.copyKey()) else group
+    }
+
+    private fun balanceLabel(account: SyncedAccount): String {
+        if (account.currency.length != 3) return account.balanceMinor.toString()
+        return MoneyFormat.standard(Money(account.balanceMinor, account.currency))
     }
 }
 

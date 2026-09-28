@@ -28,6 +28,18 @@ import com.aicfo.shared.security.LinkPolicy
 import com.aicfo.shared.security.LocalStore
 import com.aicfo.shared.security.SafeLog
 import com.aicfo.shared.security.TokenVault
+import com.aicfo.shared.sync.AccountSnapshot
+import com.aicfo.shared.sync.BankFetch
+import com.aicfo.shared.sync.BankLinkSource
+import com.aicfo.shared.sync.Freshness
+import com.aicfo.shared.sync.MayaStubBankSource
+import com.aicfo.shared.sync.ProviderTransaction
+import com.aicfo.shared.sync.SyncCode
+import com.aicfo.shared.sync.SyncLine
+import com.aicfo.shared.sync.SyncStatus
+import com.aicfo.shared.sync.SyncTrigger
+import com.aicfo.shared.sync.SyncedAccount
+import com.aicfo.shared.sync.TransactionLedger
 
 interface AppObserver {
     fun onChanged()
@@ -64,6 +76,22 @@ class AiCfoController(
         localStrings: LocalStrings,
     ) : this(vault, store, clock, market, localStrings, true)
 
+    /**
+     * Same as the primary constructor, with a [BankLinkSource] other than the Maya stub.
+     * The live Plaid port implements [BankLinkSource] and passes it here.
+     */
+    constructor(
+        vault: TokenVault,
+        store: LocalStore,
+        clock: AppClock,
+        market: MarketPack,
+        localStrings: LocalStrings,
+        debugBuild: Boolean,
+        banks: BankLinkSource,
+    ) : this(vault, store, clock, market, localStrings, debugBuild) {
+        this.banks = banks
+    }
+
     private val copy = CopyResolver(market.copy, localStrings)
     private val observers = mutableListOf<AppObserver>()
     private val statuses = mutableMapOf<String, String>()
@@ -74,6 +102,13 @@ class AiCfoController(
     private var selectedMoveId: String? = null
     private var tab: String = "HOME"
     private var linkError: String = ""
+    private var banks: BankLinkSource = MayaStubBankSource()
+    private val ledger = TransactionLedger(store)
+    private var syncStatus: SyncStatus = SyncStatus.Idle
+    private var lastSyncedAt: Long? = null
+    private var syncedAccounts: List<SyncedAccount> = emptyList()
+    private var lastTrigger: SyncTrigger? = null
+    private var syncGeneration: Int = 0
 
     init {
         load()
@@ -197,17 +232,89 @@ class AiCfoController(
         store.write(Keys.BANKS, "true")
         linkError = ""
         SafeLog.debug("link", "read-only sample linked")
-        publish()
+        refreshAccounts(SyncTrigger.Manual)
         return true
     }
 
     fun disconnectAll() {
+        syncGeneration += 1
         vault.clear()
         store.write(Keys.BANKS, "false")
+        clearSync()
         publish()
     }
 
-    fun home(): HomeModel = HomeUseCase.build(resolved(), notificationsEnabled(), market, copy)
+    /**
+     * Refresh balances and transactions. Read-only: this never moves money.
+     * Status moves to [SyncStatus.Syncing], then to success, failure, or re-auth.
+     * A source may deliver after this call returns; a newer refresh cancels the older delivery.
+     */
+    fun refreshAccounts(reason: SyncTrigger) {
+        lastTrigger = reason
+        if (!banksLinked()) {
+            if (syncStatus !is SyncStatus.Idle || lastSyncedAt != null || syncedAccounts.isNotEmpty()) {
+                clearSync()
+                publish()
+            }
+            return
+        }
+        syncGeneration += 1
+        val ticket = syncGeneration
+        syncStatus = SyncStatus.Syncing
+        publish()
+        if (!banks.readOnly) {
+            finish(ticket, BankFetch.Unavailable("Bank link refused: read-only connections only"))
+            return
+        }
+        if (store.read(Keys.NEEDS_REAUTH) == "true") {
+            finish(ticket, BankFetch.LoginRequired)
+            return
+        }
+        try {
+            banks.fetch(clock.nowEpochMs()) { result ->
+                finish(ticket, result)
+            }
+        } catch (error: Throwable) {
+            if (ticket == syncGeneration && syncStatus is SyncStatus.Syncing) {
+                finish(ticket, BankFetch.Unavailable(error.message ?: "Couldn't refresh"))
+            }
+        }
+        SafeLog.debug("sync", "refresh ${reason.name} ${syncStatus.code()}")
+    }
+
+    fun syncStatus(): SyncStatus = this.syncStatus
+
+    fun lastSyncTrigger(): SyncTrigger? = lastTrigger
+
+    fun ingestedTransactionCount(): Int = ledger.count()
+
+    fun ingestedTransaction(providerTransactionId: String): ProviderTransaction? =
+        ledger.find(providerTransactionId)
+
+    /** Clears a re-auth flag and refreshes. Does not move money or charge a card. */
+    fun reconnectBank() {
+        if (!banksLinked()) return
+        store.write(Keys.NEEDS_REAUTH, "false")
+        refreshAccounts(SyncTrigger.Manual)
+    }
+
+    /** Debug/QA only. Leaves balances visible and marks them as needing reconnect. */
+    fun debugSimulateNeedsReauth() {
+        if (!Qa.toolsEnabled(debugBuild)) return
+        syncGeneration += 1
+        store.write(Keys.NEEDS_REAUTH, "true")
+        syncStatus = SyncStatus.NeedsReauth
+        persistSync()
+        publish()
+    }
+
+    fun home(): HomeModel = HomeUseCase.build(
+        resolved(),
+        notificationsEnabled(),
+        market,
+        copy,
+        syncLine(),
+    )
 
     fun moves(): MovesModel = MovesUseCase.build(resolved(), market, copy)
 
@@ -216,7 +323,13 @@ class AiCfoController(
         return DetailUseCase.build(row)
     }
 
-    fun accounts(): AccountsModel = AccountsUseCase.build(banksLinked(), copy, linkError)
+    fun accounts(): AccountsModel = AccountsUseCase.build(
+        linked = banksLinked(),
+        copy = copy,
+        linkError = linkError,
+        accounts = displayAccounts(),
+        sync = syncLine(),
+    )
 
     fun settings(): SettingsModel {
         val ent = entitlement()
@@ -451,6 +564,115 @@ class AiCfoController(
                 if (bits.size == 2) notes[bits[0]] = bits[1]
             }
         }
+        loadSync()
+    }
+
+    private fun loadSync() {
+        lastSyncedAt = store.read(Keys.LAST_SYNCED)?.toLongOrNull()
+        val needsReauth = store.read(Keys.NEEDS_REAUTH) == "true"
+        val state = store.read(Keys.SYNC_STATE)
+        val error = store.read(Keys.SYNC_ERROR).orEmpty()
+        syncStatus = when {
+            needsReauth || state == SyncCode.NEEDS_REAUTH -> SyncStatus.NeedsReauth
+            state == SyncCode.FAILED -> SyncStatus.Failed(error.ifBlank { "Couldn't refresh" })
+            state == SyncCode.SUCCESS && lastSyncedAt != null -> SyncStatus.Success(lastSyncedAt!!)
+            else -> SyncStatus.Idle
+        }
+        syncedAccounts = AccountSnapshot.read(store)
+    }
+
+    private fun displayAccounts(): List<SyncedAccount> {
+        if (!banksLinked()) return emptyList()
+        if (syncedAccounts.isNotEmpty()) return syncedAccounts
+        if (banks.id == MayaStubBankSource.ID) return MayaStubBankSource.previewAccounts()
+        return emptyList()
+    }
+
+    private fun syncLine(): SyncLine {
+        if (!banksLinked()) return SyncLine("", SyncCode.IDLE, "", false)
+        val action = when (syncStatus) {
+            SyncStatus.NeedsReauth -> "Reconnect"
+            is SyncStatus.Failed -> "Try again"
+            else -> ""
+        }
+        val stale = syncStatus is SyncStatus.NeedsReauth || syncStatus is SyncStatus.Failed
+        return SyncLine(
+            freshnessLabel = Freshness.label(clock.nowEpochMs(), syncStatus, lastSyncedAt),
+            syncCode = syncStatus.code(),
+            syncActionLabel = action,
+            syncStale = stale,
+        )
+    }
+
+    private fun finish(ticket: Int, result: BankFetch) {
+        if (ticket != syncGeneration) return
+        when (result) {
+            is BankFetch.Ok -> {
+                ledger.ingest(result.transactions)
+                syncedAccounts = result.accounts
+                AccountSnapshot.write(store, result.accounts)
+                lastSyncedAt = clock.nowEpochMs()
+                store.write(Keys.NEEDS_REAUTH, "false")
+                syncStatus = SyncStatus.Success(lastSyncedAt!!)
+                persistSync()
+                publish()
+            }
+            is BankFetch.Unavailable -> {
+                val reason = SafeLog.redact(result.reason).take(180).ifBlank { "Couldn't refresh" }
+                syncStatus = SyncStatus.Failed(reason)
+                persistSync()
+                publish()
+            }
+            BankFetch.LoginRequired -> {
+                store.write(Keys.NEEDS_REAUTH, "true")
+                syncStatus = SyncStatus.NeedsReauth
+                persistSync()
+                publish()
+            }
+        }
+    }
+
+    private fun persistSync() {
+        when (val status = syncStatus) {
+            SyncStatus.Syncing -> Unit
+            SyncStatus.Idle -> {
+                store.remove(Keys.SYNC_STATE)
+                store.remove(Keys.LAST_SYNCED)
+                store.remove(Keys.SYNC_ERROR)
+                store.write(Keys.NEEDS_REAUTH, "false")
+            }
+            is SyncStatus.Success -> {
+                store.write(Keys.SYNC_STATE, status.code())
+                store.write(Keys.LAST_SYNCED, status.lastSyncedAt.toString())
+                store.remove(Keys.SYNC_ERROR)
+                store.write(Keys.NEEDS_REAUTH, "false")
+            }
+            is SyncStatus.Failed -> {
+                store.write(Keys.SYNC_STATE, status.code())
+                store.write(Keys.SYNC_ERROR, status.reason)
+                if (lastSyncedAt != null) {
+                    store.write(Keys.LAST_SYNCED, lastSyncedAt.toString())
+                }
+                store.write(Keys.NEEDS_REAUTH, "false")
+            }
+            SyncStatus.NeedsReauth -> {
+                store.write(Keys.SYNC_STATE, SyncCode.NEEDS_REAUTH)
+                store.write(Keys.NEEDS_REAUTH, "true")
+                store.remove(Keys.SYNC_ERROR)
+                if (lastSyncedAt != null) {
+                    store.write(Keys.LAST_SYNCED, lastSyncedAt.toString())
+                }
+            }
+        }
+    }
+
+    private fun clearSync() {
+        syncStatus = SyncStatus.Idle
+        lastSyncedAt = null
+        syncedAccounts = emptyList()
+        ledger.clear()
+        AccountSnapshot.clear(store)
+        persistSync()
     }
 
     private fun persistStatuses() {
@@ -490,4 +712,8 @@ private object Keys {
     const val STATUSES = "move_statuses"
     const val NOTES = "move_notes"
     const val TAB = "selected_tab"
+    const val LAST_SYNCED = "last_synced_at"
+    const val SYNC_STATE = "sync_state"
+    const val SYNC_ERROR = "sync_error"
+    const val NEEDS_REAUTH = "sync_needs_reauth"
 }

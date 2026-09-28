@@ -3,6 +3,8 @@ import Shared
 
 struct RootView: View {
     @EnvironmentObject private var model: AppModel
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var leftForeground = false
 
     var body: some View {
         let _ = model.revision
@@ -20,7 +22,18 @@ struct RootView: View {
                 MainShell()
             }
         }
-        .onAppear { model.refreshHardware() }
+        .onAppear {
+            model.refreshHardware()
+            model.syncForColdStart()
+        }
+        .onChange(of: scenePhase) { phase in
+            if phase != .active {
+                leftForeground = true
+            } else if leftForeground {
+                leftForeground = false
+                model.syncForForeground()
+            }
+        }
     }
 }
 

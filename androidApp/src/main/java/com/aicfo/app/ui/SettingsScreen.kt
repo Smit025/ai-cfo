@@ -101,7 +101,7 @@ fun SettingsScreen(controller: AiCfoController, tick: Int) {
             ) {
                 Text(qaTitle, color = AiColors.Text, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                 Text(
-                    "Debug tools for this build. Force the hard paywall or restore the 30-day trial without waiting.",
+                    "Debug tools for this build. Force the hard paywall, restore the 30-day trial, or simulate a bank that needs reconnect.",
                     color = AiColors.Muted,
                     fontSize = 13.sp,
                     lineHeight = 18.sp,
@@ -120,6 +120,9 @@ fun SettingsScreen(controller: AiCfoController, tick: Int) {
                 }
                 QaAction("Replay onboarding", AutomationTags.QA_REPLAY_ONBOARDING) {
                     controller.debugReplayOnboarding()
+                }
+                QaAction("Simulate bank reconnect", AutomationTags.QA_SIMULATE_RECONNECT) {
+                    controller.debugSimulateNeedsReauth()
                 }
             }
         }

@@ -21,8 +21,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -39,9 +41,12 @@ import com.aicfo.shared.presentation.HomeAmountModel
 import com.aicfo.shared.presentation.HomeModel
 import com.aicfo.shared.presentation.HomeMoveModel
 import com.aicfo.shared.presentation.Tone
+import com.aicfo.shared.sync.SyncCode
+import com.aicfo.shared.sync.SyncTrigger
 
 private val Hairline = Color(0xFFE6E8EE)
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     controller: AiCfoController,
@@ -49,11 +54,18 @@ fun HomeScreen(
     wide: Boolean,
     onOpen: (String) -> Unit,
 ) {
-    val home = remember(tick) { controller.home() }
+    val freshnessTick = rememberFreshnessTick()
+    val home = remember(tick, freshnessTick) { controller.home() }
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        PullToRefreshBox(
+            isRefreshing = home.syncCode == SyncCode.SYNCING,
+            onRefresh = { controller.refreshAccounts(SyncTrigger.PullToRefresh) },
+            modifier = Modifier
+                .widthIn(max = if (wide) 480.dp else 900.dp)
+                .fillMaxSize(),
+        ) {
         Column(
             Modifier
-                .widthIn(max = if (wide) 480.dp else 900.dp)
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
@@ -62,7 +74,7 @@ fun HomeScreen(
             Spacer(Modifier.height(12.dp))
             HomeHeader(home)
             Spacer(Modifier.height(18.dp))
-            WealthStrip(home)
+            WealthStrip(home) { performSyncAction(controller, home.syncCode) }
             if (home.hope.isNotEmpty()) {
                 Spacer(Modifier.height(12.dp))
                 HopeLine(home.hope)
@@ -102,6 +114,14 @@ fun HomeScreen(
                 }
             }
         }
+        }
+    }
+}
+
+private fun performSyncAction(controller: AiCfoController, code: String) {
+    when (code) {
+        SyncCode.NEEDS_REAUTH -> controller.reconnectBank()
+        SyncCode.FAILED -> controller.refreshAccounts(SyncTrigger.Manual)
     }
 }
 
@@ -142,7 +162,7 @@ private fun HomeHeader(home: HomeModel) {
 }
 
 @Composable
-private fun WealthStrip(home: HomeModel) {
+private fun WealthStrip(home: HomeModel, onSync: () -> Unit) {
     Column(Modifier.fillMaxWidth().softCard(radius = 22.dp).padding(horizontal = 18.dp, vertical = 16.dp)) {
         Row {
             WealthColumn(home.savingsLabel, home.savingsAmount, home.savingsDelta, home.savingsUp, Modifier.weight(1f))
@@ -155,6 +175,10 @@ private fun WealthStrip(home: HomeModel) {
             Box(Modifier.size(6.dp).clip(CircleShape).background(AiColors.Accent))
             Spacer(Modifier.width(8.dp))
             Text(home.runway, color = AiColors.Muted, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+        }
+        if (home.freshnessLabel.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            FreshnessLine(home.freshnessLabel, home.syncActionLabel, home.syncCode, onSync)
         }
     }
 }
