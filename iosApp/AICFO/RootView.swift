@@ -14,6 +14,8 @@ struct RootView: View {
             switch gate {
             case "ONBOARDING":
                 OnboardingView()
+            case "AUTH":
+                AuthFlowView()
             case "LOCK":
                 LockView()
             case "PAYWALL":

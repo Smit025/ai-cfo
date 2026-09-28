@@ -35,6 +35,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aicfo.app.BuildConfig
 import com.aicfo.app.i18n.AndroidLocalStrings
+import com.aicfo.app.security.AndroidKeystoreSecureStore
 import com.aicfo.app.security.AndroidKeystoreTokenVault
 import com.aicfo.app.security.AndroidLocalStore
 import com.aicfo.app.theme.AiColors
@@ -53,6 +54,7 @@ class AiCfoViewModel(app: Application) : AndroidViewModel(app) {
         market = Markets.unitedStates(),
         localStrings = AndroidLocalStrings(app),
         debugBuild = BuildConfig.DEBUG,
+        secure = AndroidKeystoreSecureStore(app),
     )
     private var coldStartSent = false
 
@@ -98,7 +100,10 @@ fun AiCfoRoot(vm: AiCfoViewModel = viewModel()) {
     ) {
         when (gate) {
             Gate.ONBOARDING -> OnboardingScreen(controller, tick)
-            Gate.LOCK -> LockScreen(controller, tick) { launchBiometric(activity, controller) }
+            Gate.AUTH -> AuthFlowScreen(controller, tick)
+            Gate.LOCK -> LockScreen(controller, tick) {
+                promptBiometric(activity) { ok -> controller.unlockFromBiometric(ok) }
+            }
             Gate.PAYWALL -> PaywallScreen(controller, tick)
             else -> MainShell(controller, tick)
         }
@@ -190,24 +195,24 @@ private fun MainShell(controller: AiCfoController, tick: Int) {
     }
 }
 
-private fun launchBiometric(activity: FragmentActivity, controller: AiCfoController) {
+internal fun promptBiometric(activity: FragmentActivity, onResult: (Boolean) -> Unit) {
     val executor = ContextCompat.getMainExecutor(activity)
     val prompt = BiometricPrompt(
         activity,
         executor,
         object : BiometricPrompt.AuthenticationCallback() {
             override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                controller.unlockFromBiometric(true)
+                onResult(true)
             }
 
             override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                controller.unlockFromBiometric(false)
+                onResult(false)
             }
         },
     )
     val info = BiometricPrompt.PromptInfo.Builder()
         .setTitle("Unlock Finwise")
-        .setSubtitle("Confirm it's you")
+        .setSubtitle("This confirms the device. It does not sign you in.")
         .setNegativeButtonText("Cancel")
         .build()
     prompt.authenticate(info)
