@@ -145,11 +145,14 @@ cp local.properties.example local.properties
 ./gradlew :androidApp:assembleDebug
 ```
 
-Debug APK:
+Debug APK and release bundle (the `*.apk` / `*.aab` patterns are gitignored):
 
 ```
 androidApp/build/outputs/apk/debug/androidApp-debug.apk
+androidApp/build/outputs/bundle/release/androidApp-release.aab
 ```
+
+A handoff copy of those two files is also written to `docs/builds/` when the agent builds them. That folder is not committed.
 
 Install on a device or emulator:
 
@@ -173,16 +176,32 @@ Version in this scaffold: `versionName` 0.1.0, `versionCode` 1, application id `
 
 ## iOS and TestFlight
 
-iOS archive needs a Mac with Xcode. This Linux environment cannot produce an `.ipa`.
+An `.ipa` needs a Mac. This Linux environment cannot archive or upload to TestFlight.
 
-1. Install JDK 17+ and the Android SDK (API 35). The Xcode build phase runs Gradle (`:shared:embedAndSignAppleFrameworkForXcode`) to compile the static `Shared` framework, and that build still configures the Android Gradle plugin.
-2. `cp local.properties.example local.properties` and set `sdk.dir`, or export `ANDROID_HOME`.
-3. Open `iosApp/AICFO.xcodeproj`.
-4. Select the AICFO target → Signing & Capabilities → your Team. Bundle id `com.aicfo.app`.
-5. Run on an iPhone simulator or device (deployment target iOS 16). Large-width: rotate a Plus / Max / iPad, or use a wide window.
-6. TestFlight: Product → Archive, then Distribute App → App Store Connect → Upload. Create the app record for `com.aicfo.app` in App Store Connect first. Face ID usage text is in `iosApp/AICFO/Info.plist`.
+Bundle id: `com.aicfo.app`. Scheme: `AICFO`. Deployment target: iOS 16. Face ID usage text is in `iosApp/AICFO/Info.plist`.
 
-The shared scheme is `AICFO`. User script sandboxing is off so Gradle can write the framework under `shared/build/xcode-frameworks`.
+### Mac setup
+
+1. Install Xcode 16 or newer, and open it once so the command-line tools are accepted.
+2. Install JDK 17 or newer (`java -version`).
+3. Install Android SDK API 35 (platform + build-tools 35.0.0). The Xcode build phase “Compile Kotlin Framework” runs `./gradlew :shared:embedAndSignAppleFrameworkForXcode` from the repo root. That Gradle build still configures the Android Gradle plugin, so the Mac needs the SDK even for an iOS archive.
+4. From the repo root: `cp local.properties.example local.properties` and set `sdk.dir`, or export `ANDROID_HOME` to that SDK.
+5. Open `iosApp/AICFO.xcodeproj`.
+6. Select the AICFO target → Signing & Capabilities → Team. Confirm the bundle id is `com.aicfo.app`. User script sandboxing is off so Gradle can write the static `Shared` framework under `shared/build/xcode-frameworks`.
+
+### Run locally
+
+Product → Destination → an iPhone simulator or a registered device → Run. Large-width: rotate a Plus / Max, or use an iPad. The Moves tab becomes the two-pane layout at 720pt or wider.
+
+### Archive → TestFlight
+
+1. In App Store Connect, create the app record for bundle id `com.aicfo.app` if it does not exist.
+2. In Xcode, set the destination to **Any iOS Device (arm64)**.
+3. Product → Archive. Wait until the Organizer window opens. The archive step compiles the Kotlin framework first; if it fails, check JDK 17+ and `ANDROID_HOME` / `local.properties`.
+4. In Organizer, select the archive → **Distribute App** → **App Store Connect** → **Upload**.
+5. When the build finishes processing in App Store Connect, add it to a TestFlight group and invite testers.
+
+Do not ship the debug-signed Android App Bundle to Play. The iOS archive uses your Apple distribution signing, which is separate.
 
 ## Tests
 
