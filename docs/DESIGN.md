@@ -1,0 +1,114 @@
+# AI CFO for individuals — Design one-pager
+
+**Audience:** Sofia (product design) · Susmit review  
+**Status:** Look pack **v1.1** — **HOLD deep UI until Susmit likes the look**  
+**Sibling product:** TaxVault = quarterly estimated-tax set-aside only. This product = broader personal CFO **action coach**.
+
+---
+
+## Product one-liner
+
+Answer **“What should I do with my money this month?”** with **specific actions** — not another budgeting / charts / net-worth dashboard.
+
+KMP mobile (Android + iOS), US market first. Read-only connections to banks, cards, loans, investments, salary, rent, insurance. AI surfaces expensive debt, useless subscriptions, cash-flow risk, idle cash, bill timing, refinancing — **each with a concrete next step**.
+
+---
+
+## Job-to-be-done
+
+| When | I want to | So I can |
+|------|-----------|----------|
+| It’s the start of the month / payday | Know the *few* highest-leverage money moves | Act without building a budget spreadsheet |
+
+**Primary persona (US):** Maya Chen — freelance product designer, Austin TX. Chase checking/savings, Amex + Capital One, Nelnet student loan, rent $1,850, Spotify + Adobe + idle Gympass, ~$4.2k idle in 0.01% checking.
+
+---
+
+## Information architecture
+
+```
+Home          → Hello + thin CFO pulse + 3–4 prioritized action cards
+Moves         → ranked checklist for the month (To do / Done / Skipped)
+Action detail → plain-English why + math + primary CTA + secondary remind/keep
+Accounts      → connected institutions with Read-only badges
+Settings      → profile, notifications, privacy, disconnect
+```
+
+Bottom nav: **Home · Moves · Accounts · Settings** (floating pill)
+
+**Action-first IA is unchanged in v1.1.** Home is *not* income/expense KPIs, spending charts, cash-flow gauges, P2P quick-pay, or card carousels.
+
+---
+
+## Design tokens — v1.1 soft-card craft
+
+| Token | Value |
+|-------|-------|
+| Accent (CTAs / links) | `#635BFF` |
+| Accent soft | `#EEF0FF` |
+| Text | `#0F172A` |
+| Muted | `#8B93A7` |
+| App background | `#F4F5F7` |
+| Card surface | `#FFFFFF` |
+| Soft shadow | multi-layer soft elevation (no hard Stripe borders) |
+| Nav active pill | soft black `#1A1D26` |
+| Success | `#059669` |
+| Warning | `#D97706` |
+| Danger | `#DC2626` |
+| Font | Inter / SF-like sans |
+| Radius | ~20–24px cards, pill nav, 44px phone bezel |
+| Frame | ~390×844 content, iPhone-sized |
+
+**v1.1 craft (from Susmit refs):** Soft white cards on light gray, airy spacing, large corner radii, floating pill bottom nav with dark active pill. Premium soft elevation — not flat border-only.
+
+**Rejected from refs (IA):** Total Income/Expenses KPI hero, spending line charts, Cash Flow Health gauges, Quick Payment / P2P avatars, Top Up / virtual card carousel.
+
+---
+
+## Screen map (look pack)
+
+| File | Screen | Purpose |
+|------|--------|---------|
+| `ai-cfo-home.png` | Home | Hello Maya · pulse strip · this month’s moves cards |
+| `ai-cfo-moves.png` | Moves | Ranked October 2026 checklist for Maya |
+| `ai-cfo-action-debt.png` | Action · debt | 24.9% APR card — math + Schedule / Remind |
+| `ai-cfo-action-sub.png` | Action · sub | Unused Gympass — last used, cancel / keep |
+| `ai-cfo-accounts.png` | Accounts | Read-only connected accounts strip |
+| `ai-cfo-board.png` | Collage | Home + Moves + Debt side by side |
+
+HTML sources in this folder (`home.html`, etc.) can be re-shot via `node screenshot.mjs`.
+
+---
+
+## Do / Don’t
+
+**Do**
+- Lead with **actions** and concrete CTAs (“Cancel · save $47/mo”)
+- Show plain-English *why* + simple math ($X extra → save $Y)
+- Mark every connected account **Read-only**
+- Keep priority badges sparse (P1 / P2 / P3)
+- Soft elevated cards + floating pill nav; `#635BFF` for CTAs
+
+**Don’t**
+- Hero pie / donut / rainbow charts or Cash Flow Health gauges
+- Dense Workday-style admin tables
+- Net-worth / income-expense dashboards as the home story
+- “Budget categories” as the primary IA
+- Auto-move money (product is coach + deep links / schedules user controls)
+
+---
+
+## Mark HOLD note
+
+> **HOLD deep UI polish, component library expansion, and engineering handoff of production screens until Susmit signs off on this look.**  
+> Sofia: share PNGs + this one-pager. If look is approved, next pass = interaction states, empty/error, onboarding connect flow, and KMP implementation notes for Mark.
+
+---
+
+## Differentiator vs TaxVault
+
+| | TaxVault | AI CFO |
+|--|----------|--------|
+| Scope | Quarterly estimated-tax set-aside | Full-month personal CFO actions |
+| Hero | Tax buffer progress | Prioritized moves with CTAs |
+| Success | “Am I set aside for the quarter?” | “What should I do with my money *this month*?” |
