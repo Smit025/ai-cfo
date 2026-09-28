@@ -182,6 +182,10 @@ internal object AutomationTags {
     const val QA_SIMULATE_PRO = "qa_simulate_pro"
     const val QA_CLEAR_OVERRIDE = "qa_clear_override"
     const val QA_REPLAY_ONBOARDING = "qa_replay_onboarding"
+    const val QA_RETURN_TO_TRIAL = "qa_return_to_trial"
+
+    const val PAYWALL_CONTINUE_YEARLY = "paywall_continue_yearly"
+    const val PAYWALL_CONTINUE_MONTHLY = "paywall_continue_monthly"
 }
 
 /**

@@ -7,10 +7,14 @@ import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import com.aicfo.shared.domain.AiCfoController
 import com.aicfo.shared.domain.AppClock
+import com.aicfo.shared.presentation.Gate
+import com.aicfo.shared.presentation.Phase
 import com.aicfo.shared.market.EmptyLocalStrings
 import com.aicfo.shared.market.Markets
 import com.aicfo.shared.security.MemoryLocalStore
@@ -85,4 +89,60 @@ class AutomationSemanticsTest {
         rule.onNodeWithTag(AutomationTags.QA_REPLAY_ONBOARDING)
             .assertContentDescriptionEquals("Replay onboarding")
     }
+
+    @Test
+    fun paywallCtasDismissTheHardPaywall() {
+        val controller = debugController()
+        repeat(8) {
+            if (controller.gate() != Gate.ONBOARDING) return@repeat
+            controller.primaryOnboarding()
+        }
+        controller.debugForcePaywall()
+        rule.setContent { PaywallScreen(controller, tick = 0) }
+
+        rule.onNodeWithTag(AutomationTags.PAYWALL_CONTINUE_YEARLY)
+            .assertHasClickAction()
+            .assertTextEquals("Continue · \$79/yr")
+            .assertContentDescriptionEquals("Continue · \$79/yr")
+        rule.onAllNodesWithText("Continue · \$79/yr").assertCountEquals(1)
+        rule.onNodeWithTag(AutomationTags.PAYWALL_CONTINUE_MONTHLY)
+            .assertTextEquals("Continue · \$9.99/mo")
+            .assertContentDescriptionEquals("Continue · \$9.99/mo")
+        rule.onAllNodesWithText("Continue · \$9.99/mo").assertCountEquals(1)
+
+        rule.onNodeWithTag(AutomationTags.QA_RETURN_TO_TRIAL)
+            .performScrollTo()
+            .assertTextEquals("QA: return to trial")
+            .performClick()
+        rule.runOnIdle {
+            assertEquals(Gate.APP, controller.gate())
+            assertEquals(Phase.TRIAL, controller.settings().phase)
+        }
+
+        controller.debugForcePaywall()
+        rule.onNodeWithTag(AutomationTags.PAYWALL_CONTINUE_YEARLY).performScrollTo().performClick()
+        rule.runOnIdle {
+            assertEquals(Gate.APP, controller.gate())
+            assertEquals(Phase.PRO, controller.settings().phase)
+        }
+
+        controller.debugForcePaywall()
+        rule.onNodeWithTag(AutomationTags.PAYWALL_CONTINUE_MONTHLY).performScrollTo().performClick()
+        rule.runOnIdle {
+            assertEquals(Gate.APP, controller.gate())
+            assertEquals(Phase.PRO, controller.settings().phase)
+            assertEquals("Finwise Pro · monthly", controller.settings().planLabel)
+        }
+    }
+
+    private fun debugController(): AiCfoController = AiCfoController(
+        vault = MemoryTokenVault(),
+        store = MemoryLocalStore(),
+        clock = object : AppClock {
+            override fun nowEpochMs(): Long = 10L
+        },
+        market = Markets.unitedStates(),
+        localStrings = EmptyLocalStrings,
+        debugBuild = true,
+    )
 }

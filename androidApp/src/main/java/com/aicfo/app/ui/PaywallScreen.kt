@@ -49,14 +49,26 @@ fun PaywallScreen(controller: AiCfoController, tick: Int) {
                 Text(model.yearlyPrice, color = AiColors.Text, fontWeight = FontWeight.Bold, fontSize = 36.sp)
                 Text(model.yearlyPeriod, color = AiColors.Muted, fontSize = 14.sp)
                 Spacer(Modifier.height(16.dp))
-                PrimaryButton(model.yearlyCta) { controller.purchaseYearly() }
+                PrimaryButton(
+                    model.yearlyCta,
+                    Modifier.tappableAutomationNode(
+                        AutomationTags.PAYWALL_CONTINUE_YEARLY,
+                        model.yearlyCta,
+                    ) { controller.purchaseYearly() },
+                ) { controller.purchaseYearly() }
             }
             Spacer(Modifier.height(12.dp))
             Column(Modifier.softCard().padding(18.dp)) {
                 Text(model.monthlyPrice, color = AiColors.Text, fontWeight = FontWeight.Bold, fontSize = 28.sp)
                 Text(model.monthlyPeriod, color = AiColors.Muted, fontSize = 14.sp)
                 Spacer(Modifier.height(14.dp))
-                SecondaryButton(model.monthlyCta) { controller.purchaseMonthly() }
+                SecondaryButton(
+                    model.monthlyCta,
+                    Modifier.tappableAutomationNode(
+                        AutomationTags.PAYWALL_CONTINUE_MONTHLY,
+                        model.monthlyCta,
+                    ) { controller.purchaseMonthly() },
+                ) { controller.purchaseMonthly() }
             }
             Spacer(Modifier.height(16.dp))
             Text(model.finePrint, color = AiColors.Muted, fontSize = 13.sp, lineHeight = 18.sp)
@@ -64,7 +76,14 @@ fun PaywallScreen(controller: AiCfoController, tick: Int) {
                 Spacer(Modifier.height(18.dp))
                 Text("QA", color = AiColors.Text, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 Spacer(Modifier.height(8.dp))
-                SecondaryButton("QA: return to trial") { controller.debugForceTrial() }
+                val returnToTrial = "QA: return to trial"
+                SecondaryButton(
+                    returnToTrial,
+                    Modifier.tappableAutomationNode(
+                        AutomationTags.QA_RETURN_TO_TRIAL,
+                        returnToTrial,
+                    ) { controller.debugForceTrial() },
+                ) { controller.debugForceTrial() }
             }
             Spacer(Modifier.height(24.dp))
         }
