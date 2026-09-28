@@ -234,6 +234,7 @@ internal object OnboardingUseCase {
             step = step,
             stepCount = 4,
             kicker = "",
+            descriptor = "",
             title = "",
             body = "",
             primaryCta = "Continue",
@@ -253,7 +254,8 @@ internal object OnboardingUseCase {
         )
         return when (step) {
             0 -> empty.copy(
-                kicker = copy.text(CopyKey.BRAND_TAGLINE),
+                kicker = "FINWISE",
+                descriptor = "Your AI CFO",
                 title = "Your money,\nwhat to do next",
                 body = "A calm coach for this month's moves — not another budget dashboard.",
             )

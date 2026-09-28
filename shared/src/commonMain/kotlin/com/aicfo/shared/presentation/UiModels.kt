@@ -195,6 +195,7 @@ data class OnboardingModel(
     val step: Int,
     val stepCount: Int,
     val kicker: String,
+    val descriptor: String,
     val title: String,
     val body: String,
     val primaryCta: String,

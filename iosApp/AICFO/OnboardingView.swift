@@ -53,10 +53,18 @@ struct OnboardingView: View {
         VStack(spacing: 0) {
             brandMark()
             Text(step.kicker)
-                .font(Theme.semi(15))
+                .font(Theme.semi(13))
                 .foregroundStyle(Theme.accent)
+                .tracking(1.6)
                 .multilineTextAlignment(.center)
                 .padding(.top, 28)
+            if !step.descriptor.isEmpty {
+                Text(step.descriptor)
+                    .font(Theme.body(16))
+                    .foregroundStyle(Theme.muted)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 6)
+            }
             Text(step.title)
                 .font(Theme.title(32))
                 .foregroundStyle(Theme.text)
@@ -85,12 +93,12 @@ struct OnboardingView: View {
                 .fill(Theme.accent.opacity(0.28))
                 .frame(width: 96, height: 96)
                 .offset(x: 46, y: 34)
-            Image(systemName: "house")
-                .font(.system(size: 28, weight: .regular))
-                .foregroundStyle(Theme.accent)
-                .frame(width: 84, height: 84)
-                .background(Color.white, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
-                .shadow(color: Theme.accent.opacity(0.22), radius: 16, y: 8)
+            Text("F")
+                .font(.system(size: 40, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 88, height: 88)
+                .background(Theme.accent, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+                .shadow(color: Theme.accent.opacity(0.28), radius: 16, y: 8)
         }
         .frame(width: 210, height: 210)
     }

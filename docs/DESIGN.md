@@ -117,7 +117,7 @@ Onboarding HTML + PNGs live in `onboarding/`; re-shot via `cd onboarding && node
 
 | Screen | Primary copy | CTA |
 |--------|--------------|-----|
-| Welcome | Brand line **Finwise — Your AI CFO** · “Your money, what to do next” · calm coach, not budget dashboard | Continue |
+| Welcome | Mark is a **violet F squircle** (the gold coin on the board is rejected). Brand lines **FINWISE** / **Your AI CFO** (tagline Finwise — Your AI CFO). “Your money, what to do next” | Continue |
 | Value | “We tell you what to do this month” · explicit: we don’t lead with budgets/charts/net-worth | Continue |
 | Connect | “We never move money without you” · **Read-only** badge · generic chips (Bank · Cards · Loans · Investments) — no trademarked logos | Connect securely · Skip for now |
 | Trial | Full moves · unlimited actions · all accounts · why+math · **No charge today · Cancel anytime · Then paywall** | Start free 30-day trial · Maybe later |

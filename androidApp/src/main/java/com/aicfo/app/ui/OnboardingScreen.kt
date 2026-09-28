@@ -28,7 +28,6 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.CreditCard
-import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.automirrored.outlined.TrendingUp
@@ -147,11 +146,21 @@ private fun WelcomeStep(model: OnboardingModel) {
             model.kicker,
             color = AiColors.Accent,
             fontWeight = FontWeight.SemiBold,
-            fontSize = 15.sp,
-            letterSpacing = 0.3.sp,
+            fontSize = 13.sp,
+            letterSpacing = 1.6.sp,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
         )
+        if (model.descriptor.isNotEmpty()) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                model.descriptor,
+                color = AiColors.Muted,
+                fontSize = 16.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
         Spacer(Modifier.height(14.dp))
         Text(
             model.title,
@@ -199,13 +208,13 @@ private fun BrandMark() {
         )
         Box(
             Modifier
-                .size(84.dp)
-                .shadow(16.dp, RoundedCornerShape(26.dp), ambientColor = Color(0x33635BFF), spotColor = Color(0x26635BFF))
-                .clip(RoundedCornerShape(26.dp))
-                .background(Color.White),
+                .size(88.dp)
+                .shadow(18.dp, RoundedCornerShape(28.dp), ambientColor = Color(0x40635BFF), spotColor = Color(0x33635BFF))
+                .clip(RoundedCornerShape(28.dp))
+                .background(AiColors.Accent),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Outlined.Home, contentDescription = null, tint = AiColors.Accent, modifier = Modifier.size(32.dp))
+            Text("F", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 40.sp)
         }
     }
 }
