@@ -75,8 +75,42 @@ Bottom nav: **Home · Moves · Accounts · Settings** (floating pill)
 | `ai-cfo-action-sub.png` | Action · sub | Unused Gympass — last used, cancel / keep |
 | `ai-cfo-accounts.png` | Accounts | Read-only connected accounts strip |
 | `ai-cfo-board.png` | Collage | Home + Moves + Debt side by side |
+| `onboarding/01-welcome.png` | Onboarding · Welcome | Brand moment · tagline · Continue |
+| `onboarding/02-what-we-do.png` | Onboarding · Value | Actions-not-charts · 3 example moves |
+| `onboarding/03-connect.png` | Onboarding · Connect | Read-only trust · Bank/Cards/Loans/Investments |
+| `onboarding/04-trial.png` | Onboarding · Trial | 30-day Pro · no charge today · paywall after |
+| `onboarding/onboarding-board.png` | Onboarding collage | All 4 onboarding screens side by side |
 
 HTML sources in this folder (`home.html`, etc.) can be re-shot via `node screenshot.mjs`.
+Onboarding HTML + PNGs live in `onboarding/`; re-shot via `cd onboarding && node screenshot.mjs`.
+
+---
+
+## Onboarding (v1.1 look pack)
+
+**Flow (4 screens, implementable for Mark):**
+
+```
+01 Welcome  → brand + sharp line + Continue
+02 Value    → actions not charts (example moves mini-cards) + Continue
+03 Connect  → Read-only trust + account-type chips + Connect securely / Skip
+04 Trial    → 30-day Pro included list + Start trial / Maybe later
+```
+
+**Copy notes (locked tone — Maya / calm premium)**
+
+| Screen | Primary copy | CTA |
+|--------|--------------|-----|
+| Welcome | “Your money, what to do next” · calm coach, not budget dashboard | Continue |
+| Value | “We tell you what to do this month” · explicit: we don’t lead with budgets/charts/net-worth | Continue |
+| Connect | “We never move money without you” · **Read-only** badge · generic chips (Bank · Cards · Loans · Investments) — no trademarked logos | Connect securely · Skip for now |
+| Trial | Full moves · unlimited actions · all accounts · why+math · **No charge today · Cancel anytime · Then paywall** | Start free 30-day trial · Maybe later |
+
+**Monetization:** 30-day full Pro trial → then paywall. Do not imply free forever on Maybe later; keep secondary simple.
+
+**Trust:** Connect is read-only aggregation (Plaid-class implication without naming Plaid unless already in product). Never auto-move money.
+
+**Craft:** Same soft-card v1.1 tokens as core look pack (`#F4F5F7`, white ~22px cards, soft elevation, Inter, `#635BFF` CTAs). No bottom nav on onboarding screens — progress dots only.
 
 ---
 
@@ -101,7 +135,7 @@ HTML sources in this folder (`home.html`, etc.) can be re-shot via `node screens
 ## Mark HOLD note
 
 > **HOLD deep UI polish, component library expansion, and engineering handoff of production screens until Susmit signs off on this look.**  
-> Sofia: share PNGs + this one-pager. If look is approved, next pass = interaction states, empty/error, onboarding connect flow, and KMP implementation notes for Mark.
+> Sofia: share core PNGs + onboarding pack + this one-pager. If look is approved, next pass = interaction states, empty/error, and KMP implementation notes for Mark. Onboarding flow mocks are ready in `onboarding/`.
 
 ---
 

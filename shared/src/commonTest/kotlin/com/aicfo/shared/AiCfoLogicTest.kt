@@ -118,10 +118,12 @@ class AiCfoLogicTest {
         assertFalse(LinkPolicy.accepts("password=hunter2"))
         app.advanceOnboarding()
         app.advanceOnboarding()
-        assertEquals(2, app.onboarding().step)
-        assertFalse(app.onboarding().canAdvance)
+        val connect = app.onboarding()
+        assertEquals(2, connect.step)
+        assertTrue(connect.canAdvance)
+        assertEquals("Connect securely", connect.primaryCta)
+        assertEquals("Skip for now", connect.secondaryCta)
         assertTrue(app.connectReadOnlyStub())
-        assertTrue(app.onboarding().canAdvance)
         val token = vault.read("institution.chase-checking")
         assertEquals("link_stub_chase-checking", token)
         assertTrue(LinkPolicy.accepts(token!!))
@@ -129,6 +131,54 @@ class AiCfoLogicTest {
         app.disconnectAll()
         assertNull(vault.read("institution.chase-checking"))
         assertFalse(app.accounts().linked)
+    }
+
+    @Test
+    fun onboardingBoardsMatchCopyAndCtas() {
+        val vault = MemoryTokenVault()
+        val app = AiCfoController(vault, MemoryLocalStore(), MutableClock(10L))
+        val welcome = app.onboarding()
+        assertEquals("AI CFO", welcome.kicker)
+        assertEquals("Your money,\nwhat to do next", welcome.title)
+        assertEquals("Continue", welcome.primaryCta)
+        assertEquals("", welcome.secondaryCta)
+
+        app.primaryOnboarding()
+        val value = app.onboarding()
+        assertEquals("ACTIONS, NOT CHARTS", value.kicker)
+        assertEquals(3, value.cardCount())
+        assertEquals("Cancel unused Gympass", value.cardAt(0).title)
+        assertEquals("+\$47/mo", value.cardAt(0).impact)
+        assertEquals("Park idle cash in HYSA", value.cardAt(2).title)
+
+        app.primaryOnboarding()
+        assertEquals(2, app.onboarding().step)
+        app.secondaryOnboarding()
+        assertEquals(3, app.onboarding().step)
+        assertNull(vault.read("institution.chase-checking"))
+        assertFalse(app.accounts().linked)
+
+        val trial = app.onboarding()
+        assertEquals("30 days free · Pro", trial.badge)
+        assertEquals("Start free 30-day trial", trial.primaryCta)
+        assertEquals("Maybe later", trial.secondaryCta)
+        assertEquals(4, trial.featureCount())
+        assertEquals("Then paywall", trial.chipAt(2))
+        app.secondaryOnboarding()
+        assertEquals(Gate.PAYWALL, app.gate())
+        assertEquals(Phase.PAYWALL, app.settings().phase)
+    }
+
+    @Test
+    fun connectSecurelyLinksThenContinues() {
+        val vault = MemoryTokenVault()
+        val app = AiCfoController(vault, MemoryLocalStore(), MutableClock(10L))
+        app.advanceOnboarding()
+        app.advanceOnboarding()
+        app.primaryOnboarding()
+        assertEquals(3, app.onboarding().step)
+        assertEquals("link_stub_chase-checking", vault.read("institution.chase-checking"))
+        assertTrue(app.accounts().linked)
     }
 
     @Test
@@ -176,8 +226,7 @@ class AiCfoLogicTest {
     private fun finishOnboarding(app: AiCfoController) {
         repeat(8) {
             if (app.gate() != Gate.ONBOARDING) return
-            if (!app.onboarding().canAdvance) app.connectReadOnlyStub()
-            app.advanceOnboarding()
+            app.primaryOnboarding()
         }
         assertEquals(Gate.APP, app.gate())
     }

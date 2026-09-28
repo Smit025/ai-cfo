@@ -32,7 +32,7 @@ Floating pill nav: **Home · Moves · Accounts · Settings**.
 
 | Screen | Behavior |
 | --- | --- |
-| Onboarding | Welcome → monthly moves → read-only trust → start the 30-day Pro trial. |
+| Onboarding | Welcome → actions, not charts → read-only connect → 30-day Pro trial. |
 | Home | Hello Maya, a thin runway pulse, and up to three open moves. The first card is the top move. No chat box. |
 | Moves | October 2026 ranked list with To do / Done / Skipped. |
 | Action detail | Why, math, primary CTA, secondary remind / keep. |
@@ -41,7 +41,7 @@ Floating pill nav: **Home · Moves · Accounts · Settings**.
 | Lock | Biometric gate on a cold start when the lock is on. |
 | Paywall | Hard stop when the trial is over. $9.99/month or $79/year. No forever-free plan. |
 
-Onboarding step layouts are isolated (`OnboardingScreen` / `OnboardingView`) and the words come from the shared controller, so a later pixel pass can tighten those screens without moving product copy.
+Onboarding follows Sofia’s v1.1 boards (`OnboardingScreen` / `OnboardingView`). Copy lives in the shared controller. **Connect securely** links the read-only Maya sample; **Skip for now** continues without linking. **Start free 30-day trial** starts the clock. **Maybe later** finishes onboarding without a trial, so the hard paywall shows.
 
 ## Maya Chen stub
 
@@ -59,7 +59,7 @@ Home opens on the first still-open move. Marking Gympass done or skipped promote
 
 ## Trial, paywall, and the QA flip
 
-- Completing onboarding starts a **30-day full Pro trial**.
+- **Start free 30-day trial** starts a **30-day full Pro trial**. **Maybe later** does not — the hard paywall is next, so there is no forever-free path.
 - When that clock runs out, the app shows a **hard paywall**. There is no free tier after the trial.
 - Prices: **$9.99/month** or **$79/year**. Purchase buttons in this build are simulated and mark the account Pro.
 - Replaying onboarding does **not** restart the 30 days.

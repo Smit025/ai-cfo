@@ -14,6 +14,7 @@ import com.aicfo.shared.presentation.HomeMoveModel
 import com.aicfo.shared.presentation.MoveRowModel
 import com.aicfo.shared.presentation.MoveStatusCode
 import com.aicfo.shared.presentation.MovesModel
+import com.aicfo.shared.presentation.OnboardingCard
 import com.aicfo.shared.presentation.OnboardingModel
 import com.aicfo.shared.presentation.PaywallModel
 import com.aicfo.shared.presentation.Tone
@@ -164,70 +165,110 @@ internal object AccountsUseCase {
 
 internal object OnboardingUseCase {
     fun build(step: Int, banksLinked: Boolean): OnboardingModel {
-        val prices = "${Pricing.MONTHLY_LABEL}/mo  ·  ${Pricing.YEARLY_LABEL}/yr"
-        val base = OnboardingModel(
+        val empty = OnboardingModel(
             step = step,
             stepCount = 4,
             kicker = "",
             title = "",
             body = "",
             primaryCta = "Continue",
+            secondaryCta = "",
+            footnote = "",
+            badge = "",
+            sectionLabel = "",
+            trustTitle = "",
+            trustBody = "",
             banksLinked = banksLinked,
-            canAdvance = step != 2 || banksLinked,
-            canGoBack = step > 0,
-            showConnect = step == 2,
-            connectCta = if (banksLinked) "Sample linked" else "Connect read-only",
-            linkedSummary = if (banksLinked) {
-                "Read-only sample linked · Chase, Amex, Capital One, Nelnet, Fidelity"
-            } else {
-                ""
-            },
-            priceLeft = "",
-            priceRight = "",
-            priceNote = "",
-            previewTitle = "",
-            previewImpact = "",
-            previewBody = "",
-            bullets = emptyList(),
+            canAdvance = true,
+            cards = emptyList(),
+            features = emptyList(),
+            connectTypes = emptyList(),
+            chips = emptyList(),
         )
         return when (step) {
-            0 -> base.copy(
+            0 -> empty.copy(
                 kicker = "AI CFO",
-                title = "What should you do with your money this month?",
-                body = "A personal action coach for the few moves that matter. Not another budget.",
-                previewTitle = MayaStub.move("gympass").homeTitle,
-                previewImpact = MayaStub.move("gympass").impactLabel,
-                previewBody = MayaStub.move("gympass").homeBody,
+                title = "Your money,\nwhat to do next",
+                body = "A calm coach for this month's moves — not another budget dashboard.",
             )
-            1 -> base.copy(
-                kicker = "Monthly moves",
-                title = "An action coach, not another dashboard.",
-                body = "Each month AI CFO ranks a short list. Every card has a why, the math, and one next step.",
-                bullets = listOf(
-                    "Kill expensive debt before you invest around it",
-                    "Cancel subscriptions you don't use",
-                    "Move idle cash out of 0.01% checking",
+            1 -> empty.copy(
+                kicker = "ACTIONS, NOT CHARTS",
+                title = "We tell you what\nto do this month",
+                body = "Specific moves with plain-English why — so you act, not stare at dashboards.",
+                footnote = "We don't lead with budgets, pie charts, or net-worth dashboards. Actions first.",
+                cards = listOf(
+                    OnboardingCard(
+                        title = "Cancel unused Gympass",
+                        subtitle = "Last check-in 86 days ago",
+                        impact = "+\$47/mo",
+                        icon = "CLOCK",
+                    ),
+                    OnboardingCard(
+                        title = "Pay expensive card debt",
+                        subtitle = "24.9% APR — kill interest first",
+                        impact = "Save \$180",
+                        icon = "CARD",
+                    ),
+                    OnboardingCard(
+                        title = "Park idle cash in HYSA",
+                        subtitle = "\$4,200 sitting at 0.01%",
+                        impact = "+\$18/mo",
+                        icon = "CASH",
+                    ),
                 ),
             )
-            2 -> base.copy(
-                kicker = "Read-only",
-                title = "We never move your money.",
-                body = "Linking is read-only, the way a statement is. Bank passwords are never stored. You take every action yourself.",
-                bullets = listOf(
-                    "Read-only access to banks, cards, and loans",
-                    "No bank passwords on this device",
-                    "Link tokens stay in the secure vault",
-                    "AI CFO cannot transfer, pay, or cancel for you",
+            2 -> empty.copy(
+                kicker = "CONNECT ACCOUNTS",
+                title = "See your money\nin one calm place",
+                body = "Link banks, cards, loans, and investments so we can surface this month's moves.",
+                primaryCta = "Connect securely",
+                secondaryCta = "Skip for now",
+                badge = "Read-only",
+                trustTitle = "We never move money without you",
+                trustBody = "Bank-grade encryption. We don't store your login credentials.",
+                sectionLabel = "WHAT YOU CAN CONNECT",
+                connectTypes = listOf(
+                    OnboardingCard("Bank", "Checking · Savings", "", "BANK"),
+                    OnboardingCard("Cards", "Credit · Debit", "", "CARD"),
+                    OnboardingCard("Loans", "Student · Auto", "", "LOAN"),
+                    OnboardingCard("Investments", "Brokerage · 401k", "", "INVEST"),
                 ),
             )
-            else -> base.copy(
-                kicker = "Full Pro",
-                title = "Try every move free for 30 days.",
-                body = "Then $prices. When the trial ends, the coach locks. There is no forever-free plan.",
-                primaryCta = "Start 30-day Pro trial",
-                priceLeft = Pricing.MONTHLY_LABEL,
-                priceRight = Pricing.YEARLY_LABEL,
-                priceNote = "per month  ·  or per year",
+            else -> empty.copy(
+                badge = "30 days free · Pro",
+                title = "Start your free\nPro trial",
+                body = "Full access to every move this month. No charge today.",
+                primaryCta = "Start free 30-day trial",
+                secondaryCta = "Maybe later",
+                sectionLabel = "WHAT'S INCLUDED",
+                footnote = "After 30 days, Pro continues on a paid plan. Cancel before then — no charge.",
+                features = listOf(
+                    OnboardingCard(
+                        "Full moves list",
+                        "Every prioritized action for the month, ranked",
+                        "",
+                        "",
+                    ),
+                    OnboardingCard(
+                        "Unlimited actions",
+                        "Cancel, schedule, transfer guides — no caps",
+                        "",
+                        "",
+                    ),
+                    OnboardingCard(
+                        "All connected accounts",
+                        "Bank · Cards · Loans · Investments",
+                        "",
+                        "",
+                    ),
+                    OnboardingCard(
+                        "Plain-English why + math",
+                        "Know exactly why each move matters",
+                        "",
+                        "",
+                    ),
+                ),
+                chips = listOf("No charge today", "Cancel anytime", "Then paywall"),
             )
         }
     }

@@ -89,14 +89,32 @@ class AiCfoController(
     fun onboarding(): OnboardingModel = OnboardingUseCase.build(onboardingStep, banksLinked())
 
     fun advanceOnboarding() {
-        val model = onboarding()
-        if (!model.canAdvance) return
+        if (!onboarding().canAdvance) return
         if (onboardingStep >= 3) {
-            completeOnboarding()
+            completeOnboarding(startTrial = true)
         } else {
             onboardingStep += 1
             store.write(Keys.STEP, onboardingStep.toString())
             publish()
+        }
+    }
+
+    /** Primary button. Connect securely links the read-only sample, then continues. */
+    fun primaryOnboarding() {
+        if (onboardingStep == 2) {
+            connectReadOnlyStub()
+        }
+        advanceOnboarding()
+    }
+
+    /**
+     * Skip for now leaves institutions unlinked.
+     * Maybe later finishes onboarding without starting a trial, so the paywall shows.
+     */
+    fun secondaryOnboarding() {
+        when (onboardingStep) {
+            2 -> advanceOnboarding()
+            3 -> completeOnboarding(startTrial = false)
         }
     }
 
@@ -294,9 +312,9 @@ class AiCfoController(
         publish()
     }
 
-    private fun completeOnboarding() {
+    private fun completeOnboarding(startTrial: Boolean) {
         store.write(Keys.ONBOARDING, "true")
-        if (store.read(Keys.TRIAL_START).isNullOrBlank()) {
+        if (startTrial && store.read(Keys.TRIAL_START).isNullOrBlank()) {
             store.write(Keys.TRIAL_START, clock.nowEpochMs().toString())
         }
         sessionUnlocked = true

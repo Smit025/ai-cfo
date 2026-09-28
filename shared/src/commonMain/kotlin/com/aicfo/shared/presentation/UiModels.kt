@@ -163,6 +163,13 @@ data class AccountsModel(
     fun groupAt(index: Int): AccountGroupModel = groups[index]
 }
 
+data class OnboardingCard(
+    val title: String,
+    val subtitle: String,
+    val impact: String,
+    val icon: String,
+)
+
 data class OnboardingModel(
     val step: Int,
     val stepCount: Int,
@@ -170,22 +177,27 @@ data class OnboardingModel(
     val title: String,
     val body: String,
     val primaryCta: String,
+    val secondaryCta: String,
+    val footnote: String,
+    val badge: String,
+    val sectionLabel: String,
+    val trustTitle: String,
+    val trustBody: String,
     val banksLinked: Boolean,
     val canAdvance: Boolean,
-    val canGoBack: Boolean,
-    val showConnect: Boolean,
-    val connectCta: String,
-    val linkedSummary: String,
-    val priceLeft: String,
-    val priceRight: String,
-    val priceNote: String,
-    val previewTitle: String,
-    val previewImpact: String,
-    val previewBody: String,
-    val bullets: List<String>,
+    val cards: List<OnboardingCard>,
+    val features: List<OnboardingCard>,
+    val connectTypes: List<OnboardingCard>,
+    val chips: List<String>,
 ) {
-    fun bulletCount(): Int = bullets.size
-    fun bulletAt(index: Int): String = bullets[index]
+    fun cardCount(): Int = cards.size
+    fun cardAt(index: Int): OnboardingCard = cards[index]
+    fun featureCount(): Int = features.size
+    fun featureAt(index: Int): OnboardingCard = features[index]
+    fun typeCount(): Int = connectTypes.size
+    fun typeAt(index: Int): OnboardingCard = connectTypes[index]
+    fun chipCount(): Int = chips.size
+    fun chipAt(index: Int): String = chips[index]
 }
 
 data class PaywallModel(
