@@ -207,7 +207,7 @@ internal object MayaStub {
                 category = "Idle cash",
                 lede = "This cash is sitting in 0.01% checking. Ally pays 4.20% APY.",
                 layout = LayoutCode.CASH,
-                body = "Keep enough in checking for rent (\$1,850) and the Capital One extra payment. Move the idle \$4,200 yourself — AI CFO will not transfer it.",
+                body = "Keep enough in checking for rent (\$1,850) and the Capital One extra payment. Move the idle \$4,200 yourself — Finwise will not transfer it.",
                 primary = "Open transfer guide",
                 secondary = "Remind me later",
                 accountLine = "Chase Checking · ··4821 · Read-only",

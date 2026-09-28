@@ -204,7 +204,7 @@ class AiCfoController(
     fun lock(): LockModel {
         val hardware = biometricHardware
         return LockModel(
-            title = "Unlock AI CFO",
+            title = "Unlock Finwise",
             body = if (hardware) {
                 "Your moves stay on this phone. Confirm it's you to open the coach."
             } else {
@@ -229,7 +229,7 @@ class AiCfoController(
                 "Cancel page opened (stub). This move is marked done."
             }
             MoveKind.EXTRA_DEBT_PAYMENT -> {
-                "Extra payment scheduled for Friday (stub). AI CFO still won't move the money."
+                "Extra payment scheduled for Friday (stub). Finwise still won't move the money."
             }
             MoveKind.MOVE_IDLE_CASH -> {
                 "Transfer guide opened (stub). You move the cash at your bank."

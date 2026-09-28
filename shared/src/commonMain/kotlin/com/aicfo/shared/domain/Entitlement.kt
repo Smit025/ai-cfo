@@ -72,7 +72,7 @@ object EntitlementPolicy {
     ): EntitlementSnapshot {
         val label = when (phase) {
             Phase.TRIAL -> "Pro trial · $daysRemaining days left"
-            Phase.PRO -> if (plan == "YEARLY") "AI CFO Pro · yearly" else "AI CFO Pro · monthly"
+            Phase.PRO -> if (plan == "YEARLY") "Finwise Pro · yearly" else "Finwise Pro · monthly"
             else -> if (trialConsumed) "Trial ended" else "Pro required"
         }
         val detail = when (phase) {

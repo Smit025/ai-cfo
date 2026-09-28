@@ -245,7 +245,7 @@ internal object OnboardingUseCase {
         )
         return when (step) {
             0 -> empty.copy(
-                kicker = "AI CFO",
+                kicker = "Finwise",
                 title = "Your money,\nwhat to do next",
                 body = "A calm coach for this month's moves — not another budget dashboard.",
             )
@@ -334,7 +334,7 @@ internal object OnboardingUseCase {
 
 internal object PaywallUseCase {
     fun build(trialConsumed: Boolean, monthlyLabel: String, yearlyLabel: String): PaywallModel = PaywallModel(
-        title = if (trialConsumed) "Your 30-day Pro trial has ended" else "AI CFO Pro",
+        title = if (trialConsumed) "Your 30-day Pro trial has ended" else "Finwise Pro",
         lede = "The monthly action coach stays on Pro. Specific moves, the math, and a next step — not a free dashboard.",
         monthlyPrice = monthlyLabel,
         monthlyPeriod = "/ month",

@@ -9,7 +9,7 @@ struct PaywallView: View {
         let _ = model.revision
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                Text("AI CFO Pro")
+                Text("Finwise Pro")
                     .font(Theme.semi(13))
                     .foregroundStyle(Theme.accent)
                     .padding(.top, 28)

@@ -36,7 +36,7 @@ fun PaywallScreen(controller: AiCfoController, tick: Int) {
                 .navigationBarsPadding(),
         ) {
             Spacer(Modifier.height(36.dp))
-            Kicker("AI CFO Pro")
+            Kicker("Finwise Pro")
             Spacer(Modifier.height(10.dp))
             Text(model.title, color = AiColors.Text, fontWeight = FontWeight.Bold, fontSize = 32.sp, lineHeight = 38.sp)
             Spacer(Modifier.height(12.dp))

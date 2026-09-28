@@ -172,7 +172,7 @@ private fun launchBiometric(activity: FragmentActivity, controller: AiCfoControl
         },
     )
     val info = BiometricPrompt.PromptInfo.Builder()
-        .setTitle("Unlock AI CFO")
+        .setTitle("Unlock Finwise")
         .setSubtitle("Confirm it's you")
         .setNegativeButtonText("Cancel")
         .build()

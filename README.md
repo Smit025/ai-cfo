@@ -1,6 +1,8 @@
-# AI CFO
+# Finwise
 
-A US personal CFO **action coach**. The question it answers is “What should I do with my money this month?” — a short ranked list of specific moves, each with a why, the math, and a next step.
+Finwise is a US personal CFO **action coach** (the working title was AI CFO). The question it answers is “What should I do with my money this month?” — a short ranked list of specific moves, each with a why, the math, and a next step.
+
+The repo stays `ai-cfo`. The Android application id and the iOS bundle id stay `com.aicfo.app`. The launcher name and in-app brand are Finwise.
 
 This repository is the MVP scaffold: shared Kotlin Multiplatform logic, a native Jetpack Compose Android app, and a native SwiftUI iOS app. The October 2026 sample is Maya Chen, a freelance product designer in Austin.
 

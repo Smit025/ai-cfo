@@ -54,7 +54,7 @@ final class AppModel: ObservableObject {
         var error: NSError?
         if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) {
             controller.setBiometricHardware(available: true)
-            context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: "Unlock AI CFO") { ok, _ in
+            context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: "Unlock Finwise") { ok, _ in
                 Task { @MainActor in
                     self.controller.unlockFromBiometric(success: ok)
                 }

@@ -155,7 +155,7 @@ class AiCfoLogicTest {
         val vault = MemoryTokenVault()
         val app = AiCfoController(vault, MemoryLocalStore(), MutableClock(10L))
         val welcome = app.onboarding()
-        assertEquals("AI CFO", welcome.kicker)
+        assertEquals("Finwise", welcome.kicker)
         assertEquals("Your money,\nwhat to do next", welcome.title)
         assertEquals("Continue", welcome.primaryCta)
         assertEquals("", welcome.secondaryCta)

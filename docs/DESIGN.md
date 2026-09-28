@@ -1,4 +1,6 @@
-# AI CFO for individuals — Design one-pager
+# Finwise — Design one-pager
+
+Product name is **Finwise** (working title was AI CFO). Repo and bundle id are unchanged (`ai-cfo`, `com.aicfo.app`).
 
 **Audience:** Sofia (product design) · Susmit review  
 **Status:** Look pack **v1.2** — Home IA **locked by Susmit** (wealth context + spend/save snapshot + moves). Soft-card craft still v1.1. Onboarding pack v1.1 stays.  
@@ -158,7 +160,7 @@ Onboarding HTML + PNGs live in `onboarding/`; re-shot via `cd onboarding && node
 
 ## Differentiator vs TaxVault
 
-| | TaxVault | AI CFO |
+| | TaxVault | Finwise |
 |--|----------|--------|
 | Scope | Quarterly estimated-tax set-aside | Full-month personal CFO actions |
 | Hero | Tax buffer progress | Prioritized moves with CTAs |
