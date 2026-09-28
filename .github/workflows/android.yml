@@ -25,4 +25,4 @@ jobs:
           packages: "platform-tools platforms;android-35 build-tools;35.0.0"
 
       - name: Unit tests and debug APK
-        run: ./gradlew :shared:testDebugUnitTest :androidApp:assembleDebug --stacktrace
+        run: ./gradlew :shared:testDebugUnitTest :androidApp:testDebugUnitTest :androidApp:assembleDebug --stacktrace

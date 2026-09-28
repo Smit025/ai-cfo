@@ -43,6 +43,10 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
 }
 
 kotlin {
@@ -67,4 +71,10 @@ dependencies {
     implementation(libs.fragment)
     implementation(libs.compose.ui.tooling.preview)
     debugImplementation(libs.compose.ui.tooling)
+    debugImplementation(platform(libs.compose.bom))
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    testImplementation(platform(libs.compose.bom))
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.robolectric:robolectric:4.15.1")
 }
