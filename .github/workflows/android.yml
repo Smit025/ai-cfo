@@ -18,11 +18,11 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      # v4 installs cmdline-tools and does not request the obsolete `tools` package.
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install SDK 35
-        run: sdkmanager --install "platforms;android-35" "build-tools;35.0.0"
+        uses: android-actions/setup-android@v4
+        with:
+          packages: "platform-tools platforms;android-35 build-tools;35.0.0"
 
       - name: Unit tests and debug APK
         run: ./gradlew :shared:testDebugUnitTest :androidApp:assembleDebug --stacktrace
