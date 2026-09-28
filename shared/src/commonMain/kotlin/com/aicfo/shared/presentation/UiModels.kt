@@ -269,6 +269,7 @@ data class SettingsModel(
     val qaEnabled: Boolean,
     val signedIn: Boolean = false,
     val phoneMask: String = "",
+    val deviceLockReady: Boolean = false,
 )
 
 data class LockModel(

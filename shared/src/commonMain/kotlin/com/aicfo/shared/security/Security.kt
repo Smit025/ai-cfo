@@ -110,7 +110,9 @@ object TlsPolicy {
 
 object SafeLog {
     private val token = Regex("""link_[A-Za-z0-9_\-]+""")
-    private val secretAssign = Regex("""(?i)\b(password|passwd|secret|token|ssn|cvv)\b\s*[:=]\s*\S+""")
+    private val session = Regex("""sess_[A-Za-z0-9_\-]+""")
+    private val secretAssign = Regex("""(?i)\b(password|passwd|secret|token|ssn|cvv|otp|pin)\b\s*[:=]\s*\S+""")
+    private val otpCode = Regex("""(?i)\b(?:otp|one-time code|verification code)\b\s*[:=]?\s*\d{4,8}""")
     private val email = Regex("""[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}""")
     private val longNumber = Regex("""\b\d{13,19}\b""")
 
@@ -121,6 +123,8 @@ object SafeLog {
         }
         return secrets
             .replace(token, "link_[redacted]")
+            .replace(session, "sess_[redacted]")
+            .replace(otpCode, "otp=[redacted]")
             .replace(email, "[redacted-email]")
             .replace(longNumber, "[redacted-number]")
     }

@@ -103,7 +103,7 @@ fun SettingsScreen(controller: AiCfoController, tick: Int) {
             fontSize = 13.sp,
             lineHeight = 18.sp,
         )
-        if (model.biometricEnabled) {
+        if (model.deviceLockReady) {
             SecondaryButton("Lock now") { controller.lockNow() }
         }
         SectionLabel("ACCOUNT")

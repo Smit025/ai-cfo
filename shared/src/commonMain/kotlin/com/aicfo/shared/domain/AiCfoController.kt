@@ -99,7 +99,15 @@ class AiCfoController(
         market: MarketPack,
         localStrings: LocalStrings,
         debugBuild: Boolean,
-    ) : this(vault, store, clock, market, localStrings, debugBuild, MemorySecureStore())
+    ) : this(
+        vault,
+        store,
+        clock,
+        market,
+        localStrings,
+        debugBuild,
+        if (debugBuild) MemorySecureStore() else releaseNeedsRealSecureStore(),
+    )
 
     constructor(
         vault: TokenVault,
@@ -456,6 +464,7 @@ class AiCfoController(
             qaEnabled = Qa.toolsEnabled(debugBuild),
             signedIn = session != null,
             phoneMask = mask,
+            deviceLockReady = biometricEnabled() || pinConfigured() || passcodeConfigured(),
         )
     }
 
@@ -1075,6 +1084,12 @@ class AiCfoController(
     private fun publish() {
         observers.toList().forEach { it.onChanged() }
     }
+}
+
+private fun releaseNeedsRealSecureStore(): SecureStore {
+    throw IllegalArgumentException(
+        "Release builds must pass a SecureStore. MemorySecureStore is only for debug and tests.",
+    )
 }
 
 object Qa {

@@ -242,12 +242,15 @@ class AiCfoLogicTest {
     @Test
     fun logsRedactTokensPasswordsAndCardNumbers() {
         val cleaned = SafeLog.redact(
-            "saved link_stub_chase-checking password=hunter2 4111111111111111",
+            "saved link_stub_chase-checking password=hunter2 4111111111111111 sess_1700_1234 otp 000000",
         )
         assertFalse(cleaned.contains("hunter2"))
         assertFalse(cleaned.contains("link_stub_chase-checking"))
         assertFalse(cleaned.contains("4111111111111111"))
+        assertFalse(cleaned.contains("sess_1700_1234"))
+        assertFalse(cleaned.contains("000000"))
         assertTrue(cleaned.contains("[redacted]"))
+        assertTrue(cleaned.contains("sess_[redacted]"))
         assertFalse(TlsPolicy.cleartextAllowed)
         TlsPolicy.requireHttps("https://api.aicfo.app")
     }

@@ -59,7 +59,7 @@ struct SettingsView: View {
                 Text("Session stays signed in. Phone + OTP only after Log out, reinstall, or cleared session.")
                     .font(Theme.body(13))
                     .foregroundStyle(Theme.muted)
-                if settings.biometricEnabled {
+                if settings.deviceLockReady {
                     SecondaryButton(label: "Lock now") { model.controller.lockNow() }
                 }
                 Text("ACCOUNT")

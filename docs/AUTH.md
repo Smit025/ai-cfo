@@ -73,6 +73,7 @@ Debug skip on the phone screen persists a session and continues to email. It is 
 ## Settings
 
 - **Unlock with Face ID** (iOS) / **Unlock with biometrics** (Android). Device unlock only.
+- **Lock now** — shown when biometrics, a PIN, or the device passcode is configured.
 - **Log out** — deletes the account session and the local PIN. The next open is Phone. It does not restart the 30-day trial.
 
 ## Screens
