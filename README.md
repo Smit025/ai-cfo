@@ -26,7 +26,7 @@ shared/       KMP — domain, use cases, Maya stub, entitlement, security contra
 
 `AiCfoController` is constructed by each app with a platform `TokenVault`, `LocalStore`, and optional `LocalStrings`. The default market is the United States. The UIs render the models it returns. They do not reimplement ranking, trial math, or the Maya plan.
 
-Not in this MVP: budgets, charts as the home story, P2P, tax filing, a free-form chat on Home, or live Plaid. Bank linking is a read-only stub. Canada, Europe, and the UAE are config stubs only — the shipped coach plan is still Maya in the US.
+Not in this MVP: budgets, charts as the home story, P2P, tax filing, a free-form chat on Home, or live Plaid. Bank linking is a read-only stub with a real sync state machine (`SyncStatus`, cold start / foreground / pull-to-refresh). See `docs/SYNC.md`. Canada, Europe, and the UAE are config stubs only — the shipped coach plan is still Maya in the US.
 
 ## Markets
 
@@ -100,7 +100,7 @@ QA controls are in **Settings → QA · trial / paywall** only when `Qa.toolsEna
 
 In a debug build the paywall itself has **QA: return to trial**, which is the same as Restore trial. That row is not compiled into the release UI.
 
-The trial start, subscription flag, selected tab, and move statuses persist (Android `SharedPreferences`, iOS `UserDefaults`). Link tokens persist in the Keystore / Keychain. The in-memory unlock flag resets when the process dies, so the biometric gate shows again on the next cold start when the lock is enabled.
+The trial start, subscription flag, selected tab, move statuses, and bank sync metadata (`lastSyncedAt`, failure, reconnect) persist (Android `SharedPreferences`, iOS `UserDefaults`). Link tokens persist in the Keystore / Keychain and are never written into those prefs. The in-memory unlock flag resets when the process dies, so the biometric gate shows again on the next cold start when the lock is enabled.
 
 ## Security foundations
 

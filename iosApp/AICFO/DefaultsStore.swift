@@ -1,7 +1,7 @@
 import Foundation
 import Shared
 
-/// Non-secret flags only. Tokens go through KeychainTokenVault.
+/// Non-secret flags and sync metadata. Tokens go through KeychainTokenVault.
 final class DefaultsStore: NSObject, LocalStore {
     private let defaults = UserDefaults.standard
 

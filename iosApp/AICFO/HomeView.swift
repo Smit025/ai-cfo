@@ -1,13 +1,16 @@
+import Combine
 import SwiftUI
 import Shared
 
 struct HomeView: View {
     @EnvironmentObject private var model: AppModel
     var wide: Bool
+    @State private var freshnessTick = Date()
 
     var body: some View {
         let home = model.controller.home()
         let _ = model.revision
+        let _ = freshnessTick
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 header(home)
@@ -50,6 +53,8 @@ struct HomeView: View {
             .frame(maxWidth: wide ? 480 : .infinity)
             .frame(maxWidth: .infinity)
         }
+        .refreshable { await model.pullToRefresh() }
+        .onReceive(Timer.publish(every: 30, on: .main, in: .common).autoconnect()) { freshnessTick = $0 }
     }
 
     private func header(_ home: HomeModel) -> some View {
@@ -86,6 +91,14 @@ struct HomeView: View {
             HStack(spacing: 8) {
                 Circle().fill(Theme.accent).frame(width: 6, height: 6)
                 Text(home.runway).font(Theme.semi(13)).foregroundStyle(Theme.muted)
+            }
+            if !home.freshnessLabel.isEmpty {
+                FreshnessLine(
+                    label: home.freshnessLabel,
+                    action: home.syncActionLabel,
+                    code: home.syncCode,
+                    onAction: { model.performSyncAction(code: home.syncCode) }
+                )
             }
         }
         .padding(.horizontal, 18)

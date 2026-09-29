@@ -88,7 +88,7 @@ class AndroidKeystoreTokenVault(context: Context) : TokenVault {
     }
 }
 
-/** Trial clock, onboarding, and move status. Not used for bank tokens. */
+/** Trial clock, onboarding, move status, and sync metadata. Not used for bank tokens. */
 class AndroidLocalStore(context: Context) : LocalStore {
     private val prefs = context.applicationContext.getSharedPreferences("aicfo.local", Context.MODE_PRIVATE)
 

@@ -22,6 +22,7 @@ final class AppModel: ObservableObject {
     private let observer: BridgeObserver
     @Published var revision: Int = 0
     @Published var showingDetail = false
+    private var didColdStartSync = false
 
     init() {
         let vault = KeychainTokenVault()
@@ -68,6 +69,33 @@ final class AppModel: ObservableObject {
         } else {
             controller.setBiometricHardware(available: false)
             controller.unlockWithoutHardware()
+        }
+    }
+
+    /// First activation refreshes as a cold start. Later activations are foreground resumes.
+    func syncForColdStart() {
+        guard !didColdStartSync else { return }
+        didColdStartSync = true
+        controller.refreshAccounts(reason: SyncTrigger.coldStart)
+    }
+
+    func syncForForeground() {
+        guard didColdStartSync else { return }
+        controller.refreshAccounts(reason: SyncTrigger.foreground)
+    }
+
+    func pullToRefresh() async {
+        controller.refreshAccounts(reason: SyncTrigger.pullToRefresh)
+    }
+
+    func performSyncAction(code: String) {
+        switch code {
+        case "NEEDS_REAUTH":
+            controller.reconnectBank()
+        case "FAILED":
+            controller.refreshAccounts(reason: SyncTrigger.manual)
+        default:
+            break
         }
     }
 

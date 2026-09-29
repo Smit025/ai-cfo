@@ -78,6 +78,10 @@ data class HomeModel(
     val emptyBody: String,
     val snapshot: List<HomeAmountModel>,
     val moves: List<HomeMoveModel>,
+    val freshnessLabel: String,
+    val syncCode: String,
+    val syncActionLabel: String,
+    val syncStale: Boolean,
 ) {
     fun snapshotCount(): Int = snapshot.size
     fun snapshotAt(index: Int): HomeAmountModel = snapshot[index]
@@ -179,6 +183,10 @@ data class AccountsModel(
     val emptyCta: String,
     val linkError: String,
     val groups: List<AccountGroupModel>,
+    val freshnessLabel: String,
+    val syncCode: String,
+    val syncActionLabel: String,
+    val syncStale: Boolean,
 ) {
     fun groupCount(): Int = groups.size
     fun groupAt(index: Int): AccountGroupModel = groups[index]

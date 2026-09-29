@@ -29,6 +29,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aicfo.app.BuildConfig
 import com.aicfo.app.i18n.AndroidLocalStrings
@@ -40,6 +43,7 @@ import com.aicfo.shared.domain.AiCfoController
 import com.aicfo.shared.domain.SystemAppClock
 import com.aicfo.shared.presentation.Gate
 import com.aicfo.shared.domain.AppObserver
+import com.aicfo.shared.sync.SyncTrigger
 
 class AiCfoViewModel(app: Application) : AndroidViewModel(app) {
     val controller: AiCfoController = AiCfoController(
@@ -50,12 +54,32 @@ class AiCfoViewModel(app: Application) : AndroidViewModel(app) {
         localStrings = AndroidLocalStrings(app),
         debugBuild = BuildConfig.DEBUG,
     )
+    private var coldStartSent = false
+
+    fun onAppVisible() {
+        if (!coldStartSent) {
+            coldStartSent = true
+            controller.refreshAccounts(SyncTrigger.ColdStart)
+        } else {
+            controller.refreshAccounts(SyncTrigger.Foreground)
+        }
+    }
 }
 
 @Composable
 fun AiCfoRoot(vm: AiCfoViewModel = viewModel()) {
     val controller = vm.controller
     val tick = rememberRevision(controller)
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_START) vm.onAppVisible()
+        }
+        // addObserver replays ON_START when the activity is already started.
+        // A second onAppVisible here would send Foreground on the same open.
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     val activity = LocalContext.current.findActivity() as FragmentActivity
     LaunchedEffect(activity) {
         val authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG or

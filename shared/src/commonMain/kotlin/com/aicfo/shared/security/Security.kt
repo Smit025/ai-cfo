@@ -11,7 +11,7 @@ interface TokenVault {
     fun clear()
 }
 
-/** Non-secret flags: onboarding, trial clock, move status. Not for tokens. */
+/** Non-secret flags: onboarding, trial clock, move status, sync metadata. Not for tokens. */
 interface LocalStore {
     fun read(key: String): String?
     fun write(key: String, value: String)
