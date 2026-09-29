@@ -8,6 +8,7 @@ import com.aicfo.shared.market.Markets
 import com.aicfo.shared.security.LinkPolicy
 import com.aicfo.shared.security.LocalStore
 import com.aicfo.shared.security.MemoryLocalStore
+import com.aicfo.shared.security.MemorySecureStore
 import com.aicfo.shared.security.MemoryTokenVault
 import com.aicfo.shared.security.TokenVault
 import com.aicfo.shared.sync.BankFetch
@@ -260,6 +261,7 @@ class BankSyncTest {
             Markets.unitedStates(),
             EmptyLocalStrings,
             false,
+            MemorySecureStore(),
         )
         store.write("banks_linked", "true")
         app.refreshAccounts(SyncTrigger.ColdStart)

@@ -117,8 +117,8 @@ class AiCfoController(
     ) : this(vault, store, clock, Markets.unitedStates(), EmptyLocalStrings, true, secure)
 
     /**
-     * Same as the primary constructor, with a [BankLinkSource] other than the Maya stub.
-     * The live Plaid port implements [BankLinkSource] and passes it here.
+     * Debug helper with a [BankLinkSource] other than the Maya stub.
+     * Release builds must use the overload that also passes a [SecureStore].
      */
     constructor(
         vault: TokenVault,
@@ -129,6 +129,23 @@ class AiCfoController(
         debugBuild: Boolean,
         banks: BankLinkSource,
     ) : this(vault, store, clock, market, localStrings, debugBuild) {
+        this.banks = banks
+    }
+
+    /**
+     * Release path for a live bank link: real secure storage and a [BankLinkSource].
+     * The live Plaid port implements [BankLinkSource] and passes it here.
+     */
+    constructor(
+        vault: TokenVault,
+        store: LocalStore,
+        clock: AppClock,
+        market: MarketPack,
+        localStrings: LocalStrings,
+        debugBuild: Boolean,
+        secure: SecureStore,
+        banks: BankLinkSource,
+    ) : this(vault, store, clock, market, localStrings, debugBuild, secure) {
         this.banks = banks
     }
 
