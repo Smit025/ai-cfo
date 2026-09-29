@@ -25,7 +25,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSFaceIDUsageDescription</key>
-	<string>Finwise uses Face ID to unlock your monthly moves. Bank passwords are never stored.</string>
+	<string>Finwise uses Face ID to unlock this device. It does not sign you in. Your account stays phone and a one-time code.</string>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIColorName</key>

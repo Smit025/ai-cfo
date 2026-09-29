@@ -1,6 +1,7 @@
 package com.aicfo.app.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,7 +14,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Fingerprint
+import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -60,16 +66,79 @@ fun SettingsScreen(controller: AiCfoController, tick: Int) {
             Spacer(Modifier.height(4.dp))
             Text(model.planDetail, color = AiColors.Muted, fontSize = 13.sp, lineHeight = 18.sp)
         }
+        SectionLabel("SECURITY")
+        Row(Modifier.fillMaxWidth().softCard(radius = 22.dp).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(AiColors.AccentSoft),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Outlined.Fingerprint, contentDescription = null, tint = AiColors.Accent)
+            }
+            Spacer(Modifier.size(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Unlock with biometrics", color = AiColors.Text, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    "Required on each cold start while signed in",
+                    color = AiColors.Muted,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                )
+            }
+            Switch(
+                checked = model.biometricEnabled,
+                onCheckedChange = { controller.setBiometricEnabled(it) },
+                colors = SwitchDefaults.colors(
+                    checkedTrackColor = AiColors.Accent,
+                    checkedThumbColor = AiColors.White,
+                ),
+            )
+        }
+        Text(
+            "Session stays signed in. Phone + OTP only after Log out, reinstall, or cleared session.",
+            color = AiColors.Muted,
+            fontSize = 13.sp,
+            lineHeight = 18.sp,
+        )
+        if (model.deviceLockReady) {
+            SecondaryButton("Lock now") { controller.lockNow() }
+        }
+        SectionLabel("ACCOUNT")
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .softCard(radius = 22.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .clickable { controller.logOut() }
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(AiColors.DangerSoft),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.AutoMirrored.Outlined.Logout, contentDescription = null, tint = AiColors.Danger)
+            }
+            Spacer(Modifier.size(12.dp))
+            Column {
+                Text("Log out", color = AiColors.Danger, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    "Clears session — next open asks for phone + OTP",
+                    color = AiColors.Muted,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                )
+            }
+        }
         ToggleRow("Notifications", "A dot on Home when a move is waiting.", model.notificationsEnabled) {
             controller.setNotifications(it)
-        }
-        ToggleRow(
-            "Biometric lock",
-            if (model.biometricHardware) "Ask for biometrics each time the app opens." else "No biometric hardware on this device. The gate still shows a continue path.",
-            model.biometricEnabled,
-        ) { controller.setBiometricEnabled(it) }
-        if (model.biometricEnabled) {
-            SecondaryButton("Lock now") { controller.lockNow() }
         }
         Column(Modifier.fillMaxWidth().softCard().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("About", color = AiColors.Text, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)

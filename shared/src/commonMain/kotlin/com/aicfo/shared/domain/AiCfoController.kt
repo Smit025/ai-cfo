@@ -1,5 +1,15 @@
 package com.aicfo.shared.domain
 
+import com.aicfo.shared.auth.AppGate
+import com.aicfo.shared.auth.AuthSession
+import com.aicfo.shared.auth.DeviceUnlockPrefs
+import com.aicfo.shared.auth.PhoneNumbers
+import com.aicfo.shared.auth.PinSecret
+import com.aicfo.shared.auth.ReportEmail
+import com.aicfo.shared.auth.SecureKeys
+import com.aicfo.shared.auth.StubOtpAuthRepository
+import com.aicfo.shared.auth.UnconfiguredOtpAuthRepository
+import com.aicfo.shared.auth.OtpAuthRepository
 import com.aicfo.shared.data.MayaStub
 import com.aicfo.shared.market.CopyKey
 import com.aicfo.shared.market.CopyResolver
@@ -14,8 +24,8 @@ import com.aicfo.shared.market.snapshot
 import com.aicfo.shared.model.MoveKind
 import com.aicfo.shared.model.wire
 import com.aicfo.shared.presentation.AccountsModel
+import com.aicfo.shared.presentation.AuthStep
 import com.aicfo.shared.presentation.DetailModel
-import com.aicfo.shared.presentation.Gate
 import com.aicfo.shared.presentation.HomeModel
 import com.aicfo.shared.presentation.LockModel
 import com.aicfo.shared.presentation.MovesModel
@@ -26,7 +36,9 @@ import com.aicfo.shared.presentation.QaOverride
 import com.aicfo.shared.presentation.SettingsModel
 import com.aicfo.shared.security.LinkPolicy
 import com.aicfo.shared.security.LocalStore
+import com.aicfo.shared.security.MemorySecureStore
 import com.aicfo.shared.security.SafeLog
+import com.aicfo.shared.security.SecureStore
 import com.aicfo.shared.security.TokenVault
 import com.aicfo.shared.sync.AccountSnapshot
 import com.aicfo.shared.sync.BankFetch
@@ -56,7 +68,11 @@ class AiCfoController(
     private val market: MarketPack,
     private val localStrings: LocalStrings,
     private val debugBuild: Boolean,
+    private val secure: SecureStore,
 ) {
+    private val otp: OtpAuthRepository =
+        if (debugBuild) StubOtpAuthRepository() else UnconfiguredOtpAuthRepository()
+
     /**
      * US pack, shared English catalog, debug QA tools on.
      * Release apps must use the full constructor and pass `debugBuild = false`.
@@ -65,20 +81,44 @@ class AiCfoController(
         vault: TokenVault,
         store: LocalStore,
         clock: AppClock,
-    ) : this(vault, store, clock, Markets.unitedStates(), EmptyLocalStrings, true)
+    ) : this(vault, store, clock, Markets.unitedStates(), EmptyLocalStrings, true, MemorySecureStore())
 
-    /** Debug/test helper. Release apps must pass `debugBuild = false`. */
+    /** Debug/test helper. Release apps must pass `debugBuild = false` and a real [SecureStore]. */
     constructor(
         vault: TokenVault,
         store: LocalStore,
         clock: AppClock,
         market: MarketPack,
         localStrings: LocalStrings,
-    ) : this(vault, store, clock, market, localStrings, true)
+    ) : this(vault, store, clock, market, localStrings, true, MemorySecureStore())
+
+    constructor(
+        vault: TokenVault,
+        store: LocalStore,
+        clock: AppClock,
+        market: MarketPack,
+        localStrings: LocalStrings,
+        debugBuild: Boolean,
+    ) : this(
+        vault,
+        store,
+        clock,
+        market,
+        localStrings,
+        debugBuild,
+        if (debugBuild) MemorySecureStore() else releaseNeedsRealSecureStore(),
+    )
+
+    constructor(
+        vault: TokenVault,
+        store: LocalStore,
+        clock: AppClock,
+        secure: SecureStore,
+    ) : this(vault, store, clock, Markets.unitedStates(), EmptyLocalStrings, true, secure)
 
     /**
-     * Same as the primary constructor, with a [BankLinkSource] other than the Maya stub.
-     * The live Plaid port implements [BankLinkSource] and passes it here.
+     * Debug helper with a [BankLinkSource] other than the Maya stub.
+     * Release builds must use the overload that also passes a [SecureStore].
      */
     constructor(
         vault: TokenVault,
@@ -92,13 +132,36 @@ class AiCfoController(
         this.banks = banks
     }
 
+    /**
+     * Release path for a live bank link: real secure storage and a [BankLinkSource].
+     * The live Plaid port implements [BankLinkSource] and passes it here.
+     */
+    constructor(
+        vault: TokenVault,
+        store: LocalStore,
+        clock: AppClock,
+        market: MarketPack,
+        localStrings: LocalStrings,
+        debugBuild: Boolean,
+        secure: SecureStore,
+        banks: BankLinkSource,
+    ) : this(vault, store, clock, market, localStrings, debugBuild, secure) {
+        this.banks = banks
+    }
+
     private val copy = CopyResolver(market.copy, localStrings)
     private val observers = mutableListOf<AppObserver>()
     private val statuses = mutableMapOf<String, String>()
     private val notes = mutableMapOf<String, String>()
     private var onboardingStep: Int = 0
-    private var sessionUnlocked: Boolean = false
+    private var deviceUnlocked: Boolean = false
     private var biometricHardware: Boolean = false
+    private var pendingPhone: String? = null
+    private var otpSentAtMs: Long = 0L
+    private var phoneError: String = ""
+    private var otpError: String = ""
+    private var emailError: String = ""
+    private var pinError: String = ""
     private var selectedMoveId: String? = null
     private var tab: String = "HOME"
     private var linkError: String = ""
@@ -122,12 +185,58 @@ class AiCfoController(
         observers -= observer
     }
 
-    fun gate(): String {
-        if (!onboardingComplete()) return Gate.ONBOARDING
-        if (biometricEnabled() && !sessionUnlocked) return Gate.LOCK
-        if (entitlement().phase == Phase.PAYWALL) return Gate.PAYWALL
-        return Gate.APP
+    fun gate(): String = AppGate.resolve(
+        hasSession = hasSession(),
+        introComplete = introComplete(),
+        authSetupComplete = authSetupComplete(),
+        onboardingComplete = onboardingComplete(),
+        deviceUnlockNeeded = deviceUnlockNeeded(),
+        entitled = entitlement().phase != Phase.PAYWALL,
+    )
+
+    fun hasSession(): Boolean = readSession() != null
+
+    fun sessionPhone(): String = readSession()?.phoneE164.orEmpty()
+
+    fun authStep(): String {
+        if (!hasSession()) return if (pendingPhone != null) AuthStep.OTP else AuthStep.PHONE
+        if (!emailDecided()) return AuthStep.EMAIL
+        if (!authSetupComplete()) return AuthStep.UNLOCK
+        return AuthStep.DONE
     }
+
+    fun phoneError(): String = phoneError
+
+    fun otpError(): String = otpError
+
+    fun emailError(): String = emailError
+
+    fun pinError(): String = pinError
+
+    fun maskedPhone(): String {
+        val phone = pendingPhone ?: readSession()?.phoneE164 ?: return ""
+        return PhoneNumbers.maskTight(phone)
+    }
+
+    fun resendSeconds(): Int {
+        if (otpSentAtMs == 0L) return 0
+        val elapsed = ((clock.nowEpochMs() - otpSentAtMs) / 1000L).toInt()
+        return (RESEND_SEC - elapsed).coerceAtLeast(0)
+    }
+
+    fun reportEmail(): String = store.read(Keys.REPORT_EMAIL).orEmpty()
+
+    fun debugAuthTools(): Boolean = Qa.toolsEnabled(debugBuild)
+
+    /** Debug builds may show this on the phone screen. Empty in release. */
+    fun debugOtpCode(): String = if (debugBuild) StubOtpAuthRepository.DEBUG_CODE else ""
+
+    fun deviceUnlock(): DeviceUnlockPrefs = DeviceUnlockPrefs(
+        biometricEnabled = biometricEnabled(),
+        pinSet = pinConfigured(),
+        passcodeFallback = passcodeConfigured(),
+        setupComplete = authSetupComplete(),
+    )
 
     fun tab(): String = tab
 
@@ -167,38 +276,45 @@ class AiCfoController(
     )
 
     fun onboarding(): OnboardingModel =
-        OnboardingUseCase.build(onboardingStep, banksLinked(), market, copy, linkError)
+        OnboardingUseCase.build(displayOnboardingStep(), banksLinked(), market, copy, linkError)
 
     fun advanceOnboarding() {
         if (!onboarding().canAdvance) return
         linkError = ""
-        if (onboardingStep >= 3) {
-            completeOnboarding(startTrial = true)
-        } else {
-            onboardingStep += 1
-            store.write(Keys.STEP, onboardingStep.toString())
-            publish()
+        when {
+            onboardingStep < 2 -> {
+                onboardingStep += 1
+                store.write(Keys.STEP, onboardingStep.toString())
+                publish()
+            }
+            !introComplete() -> finishIntro()
+            else -> completeOnboarding(startTrial = true)
         }
     }
 
-    /** Primary button. Connect securely links the read-only sample, then continues. */
+    /**
+     * Primary button. Connect securely links the read-only sample, then finishes the intro.
+     * The trial step is the primary again after phone OTP and unlock setup.
+     */
     fun primaryOnboarding() {
-        if (onboardingStep == 2 && !connectReadOnlyStub()) return
+        if (onboardingStep == 2 && !introComplete() && !connectReadOnlyStub()) return
         advanceOnboarding()
     }
 
     /**
-     * Skip for now leaves institutions unlinked.
-     * Maybe later finishes onboarding without starting a trial, so the paywall shows.
+     * Skip for now leaves institutions unlinked and finishes the intro.
+     * Maybe later finishes the trial step without starting a trial, so the paywall shows.
      */
     fun secondaryOnboarding() {
-        when (onboardingStep) {
-            2 -> advanceOnboarding()
-            3 -> completeOnboarding(startTrial = false)
+        when {
+            onboardingStep == 2 && !introComplete() -> finishIntro()
+            introComplete() && authSetupComplete() && !onboardingComplete() ->
+                completeOnboarding(startTrial = false)
         }
     }
 
     fun backOnboarding() {
+        if (introComplete() && authSetupComplete() && !onboardingComplete()) return
         if (onboardingStep <= 0) return
         onboardingStep -= 1
         store.write(Keys.STEP, onboardingStep.toString())
@@ -344,9 +460,15 @@ class AiCfoController(
     fun settings(): SettingsModel {
         val ent = entitlement()
         val profile = MayaStub.profile
+        val session = readSession()
+        val mask = session?.let { PhoneNumbers.maskSpaced(it.phoneE164) }.orEmpty()
         return SettingsModel(
             name = profile.fullName,
-            meta = "${profile.occupation} · ${profile.city}, ${profile.region}",
+            meta = if (session != null) {
+                "$mask · Signed in"
+            } else {
+                "${profile.occupation} · ${profile.city}, ${profile.region}"
+            },
             initials = profile.initials,
             brandTagline = copy.text(CopyKey.BRAND_TAGLINE),
             notificationsEnabled = notificationsEnabled(),
@@ -357,21 +479,38 @@ class AiCfoController(
             banksLinked = banksLinked(),
             phase = ent.phase,
             qaEnabled = Qa.toolsEnabled(debugBuild),
+            signedIn = session != null,
+            phoneMask = mask,
+            deviceLockReady = biometricEnabled() || pinConfigured() || passcodeConfigured(),
         )
     }
 
     fun lock(): LockModel {
-        val hardware = biometricHardware
+        val bio = biometricHardware && biometricEnabled()
+        val pin = pinConfigured()
+        val passcode = passcodeConfigured()
+        val create = !bio && !pin && !passcode && !debugBuild
+        val primary = when {
+            bio -> "Unlock with biometrics"
+            pin -> "Unlock with PIN"
+            passcode -> "Use device passcode"
+            create -> "Create a PIN"
+            else -> "Continue without biometrics"
+        }
         return LockModel(
             brand = copy.text(CopyKey.BRAND_TAGLINE),
             title = "Unlock Finwise",
-            body = if (hardware) {
-                "Your moves stay on this phone. Confirm it's you to open the coach."
-            } else {
-                "This device has no biometric hardware. The gate is still on. Continue to open the sample coach. On a phone with Face ID or a fingerprint, this is a real biometric prompt."
-            },
-            primaryCta = if (hardware) "Unlock with biometrics" else "Continue without biometrics",
-            hardwareAvailable = hardware,
+            body = "You're still signed in. This check unlocks the device — not a new login.",
+            primaryCta = primary,
+            hardwareAvailable = bio,
+            kicker = "WELCOME BACK",
+            secondaryCta = if (bio) "Use PIN" else "",
+            methodTitle = if (bio) "Biometrics" else "PIN",
+            methodDetail = "Device unlock only · account stays via phone+OTP",
+            pinSet = pin,
+            mustCreatePin = create,
+            preferPin = !bio && pin,
+            passcodeFallback = passcode,
         )
     }
 
@@ -440,7 +579,9 @@ class AiCfoController(
 
     fun setBiometricEnabled(enabled: Boolean) {
         store.write(Keys.BIOMETRIC, if (enabled) "true" else "false")
-        if (!enabled) sessionUnlocked = true
+        if (!enabled && debugBuild && !pinConfigured() && !passcodeConfigured()) {
+            deviceUnlocked = true
+        }
         publish()
     }
 
@@ -452,19 +593,207 @@ class AiCfoController(
 
     fun unlockFromBiometric(success: Boolean) {
         if (!success) return
-        sessionUnlocked = true
+        deviceUnlocked = true
         publish()
     }
 
+    /** Device passcode succeeded. This is still device unlock, not a new account login. */
+    fun unlockFromDevicePasscode(success: Boolean) {
+        if (!success) return
+        deviceUnlocked = true
+        publish()
+    }
+
+    /**
+     * Debug-only escape when the emulator has no biometric hardware and no PIN.
+     * Release builds ignore this so the unlock gate cannot be empty.
+     */
     fun unlockWithoutHardware() {
+        if (!debugBuild) return
         if (biometricHardware) return
-        sessionUnlocked = true
+        if (pinConfigured() || passcodeConfigured()) return
+        deviceUnlocked = true
         publish()
     }
 
     fun lockNow() {
-        if (!biometricEnabled()) return
-        sessionUnlocked = false
+        if (!biometricEnabled() && !pinConfigured() && !passcodeConfigured()) return
+        deviceUnlocked = false
+        publish()
+    }
+
+    fun submitPhone(raw: String): Boolean {
+        val e164 = PhoneNumbers.toE164(raw)
+        if (!PhoneNumbers.isValidUs(e164)) {
+            phoneError = "Enter a valid US mobile number."
+            publish()
+            return false
+        }
+        return sendCode(e164)
+    }
+
+    fun resendOtp(): Boolean {
+        val phone = pendingPhone ?: return false
+        if (resendSeconds() > 0) return false
+        return sendCode(phone)
+    }
+
+    fun changePhoneNumber() {
+        pendingPhone = null
+        otpError = ""
+        otpSentAtMs = 0L
+        publish()
+    }
+
+    fun verifyOtp(code: String): Boolean {
+        val phone = pendingPhone
+        if (phone == null) {
+            otpError = "Request a new code."
+            publish()
+            return false
+        }
+        val digits = code.filter { it.isDigit() }
+        if (digits.length != 6) {
+            otpError = "Enter the 6-digit code."
+            publish()
+            return false
+        }
+        val result = otp.verifyCode(phone, digits)
+        if (!result.ok) {
+            otpError = result.message.ifBlank { "That code is wrong or expired." }
+            publish()
+            return false
+        }
+        if (!writeSession(phone)) {
+            otpError = "Couldn't save this sign-in on the device."
+            publish()
+            return false
+        }
+        pendingPhone = null
+        otpError = ""
+        phoneError = ""
+        publish()
+        return true
+    }
+
+    /** Debug-only. Skips phone + OTP and persists a session. Email and unlock setup still follow. */
+    fun debugSkipPhone() {
+        if (!Qa.toolsEnabled(debugBuild)) return
+        if (!writeSession("+15555550100")) return
+        pendingPhone = null
+        phoneError = ""
+        otpError = ""
+        publish()
+    }
+
+    fun saveReportEmail(raw: String): Boolean {
+        val email = raw.trim()
+        if (!ReportEmail.accepts(email)) {
+            emailError = "Enter a valid email."
+            publish()
+            return false
+        }
+        store.write(Keys.REPORT_EMAIL, email)
+        store.write(Keys.EMAIL_DECIDED, "true")
+        emailError = ""
+        publish()
+        return true
+    }
+
+    fun skipReportEmail() {
+        store.write(Keys.EMAIL_DECIDED, "true")
+        emailError = ""
+        publish()
+    }
+
+    /** First-run: user turned biometrics on. Does not replace phone + OTP. */
+    fun enableBiometricUnlock(): Boolean {
+        store.write(Keys.BIOMETRIC, "true")
+        finishUnlockSetup()
+        return true
+    }
+
+    /** iOS device passcode counts as an unlock path. It is not an account login. */
+    fun enablePasscodeUnlock(): Boolean {
+        store.write(Keys.PASSCODE, "true")
+        finishUnlockSetup()
+        return true
+    }
+
+    fun saveDevicePin(pin: String, confirm: String): Boolean {
+        if (pin.length != 6 || pin.any { !it.isDigit() }) {
+            pinError = "Enter a 6-digit PIN."
+            publish()
+            return false
+        }
+        if (pin != confirm) {
+            pinError = "Those PINs don't match."
+            publish()
+            return false
+        }
+        val sealed = PinSecret.seal(pin, clock.nowEpochMs().toString())
+        if (!secure.put(SecureKeys.PIN, sealed)) {
+            pinError = "Couldn't save that PIN on this device."
+            publish()
+            return false
+        }
+        store.write(Keys.PIN_SET, "true")
+        pinError = ""
+        finishUnlockSetup()
+        return true
+    }
+
+    fun unlockWithPin(pin: String): Boolean {
+        val sealed = secure.read(SecureKeys.PIN)
+        if (sealed == null || !PinSecret.matches(pin, sealed)) {
+            pinError = "Wrong PIN."
+            publish()
+            return false
+        }
+        pinError = ""
+        deviceUnlocked = true
+        publish()
+        return true
+    }
+
+    /**
+     * Debug QA can leave unlock setup without a PIN so emulators are not stuck.
+     * Release builds ignore this. A release build still has to pick biometrics, PIN, or passcode.
+     */
+    fun debugCompleteUnlockSetup() {
+        if (!Qa.toolsEnabled(debugBuild)) return
+        finishUnlockSetup()
+    }
+
+    /** Clears the account session. Next cold start is phone + OTP. Link tokens stay until disconnect. */
+    fun logOut() {
+        secure.remove(SecureKeys.SESSION)
+        secure.remove(SecureKeys.PIN)
+        store.remove(Keys.PIN_SET)
+        store.remove(Keys.AUTH_SETUP)
+        store.remove(Keys.EMAIL_DECIDED)
+        store.remove(Keys.REPORT_EMAIL)
+        store.remove(Keys.PASSCODE)
+        store.remove(Keys.BIOMETRIC)
+        pendingPhone = null
+        deviceUnlocked = false
+        phoneError = ""
+        otpError = ""
+        emailError = ""
+        pinError = ""
+        publish()
+    }
+
+    /** Test helper. Writes a session and marks email + unlock setup done for this process. */
+    internal fun testingSeedSession(phone: String = "+15555551234") {
+        if (!writeSession(phone)) return
+        store.write(Keys.EMAIL_DECIDED, "true")
+        store.write(Keys.AUTH_SETUP, "true")
+        deviceUnlocked = true
+        if (introComplete() && !onboardingComplete()) {
+            onboardingStep = 3
+            store.write(Keys.STEP, "3")
+        }
         publish()
     }
 
@@ -483,9 +812,10 @@ class AiCfoController(
     fun debugReplayOnboarding() {
         if (!Qa.toolsEnabled(debugBuild)) return
         store.write(Keys.ONBOARDING, "false")
+        store.write(Keys.INTRO, "false")
         store.write(Keys.STEP, "0")
         onboardingStep = 0
-        sessionUnlocked = false
+        deviceUnlocked = false
         publish()
     }
 
@@ -509,7 +839,7 @@ class AiCfoController(
         if (startTrial && store.read(Keys.TRIAL_START).isNullOrBlank()) {
             store.write(Keys.TRIAL_START, clock.nowEpochMs().toString())
         }
-        sessionUnlocked = true
+        deviceUnlocked = true
         publish()
     }
 
@@ -527,6 +857,76 @@ class AiCfoController(
     )
 
     private fun onboardingComplete(): Boolean = store.read(Keys.ONBOARDING) == "true"
+
+    private fun introComplete(): Boolean =
+        store.read(Keys.INTRO) == "true" || onboardingComplete()
+
+    private fun authSetupComplete(): Boolean = store.read(Keys.AUTH_SETUP) == "true"
+
+    private fun emailDecided(): Boolean = store.read(Keys.EMAIL_DECIDED) == "true"
+
+    private fun pinConfigured(): Boolean =
+        store.read(Keys.PIN_SET) == "true" && !secure.read(SecureKeys.PIN).isNullOrBlank()
+
+    private fun passcodeConfigured(): Boolean = store.read(Keys.PASSCODE) == "true"
+
+    private fun deviceUnlockNeeded(): Boolean {
+        if (deviceUnlocked) return false
+        if (!hasSession() || !authSetupComplete() || !onboardingComplete()) return false
+        val path = biometricEnabled() || pinConfigured() || passcodeConfigured()
+        if (debugBuild && !path) return false
+        return true
+    }
+
+    private fun displayOnboardingStep(): Int = when {
+        introComplete() && authSetupComplete() && !onboardingComplete() -> 3
+        else -> onboardingStep.coerceIn(0, 2)
+    }
+
+    private fun finishIntro() {
+        store.write(Keys.INTRO, "true")
+        publish()
+    }
+
+    private fun sendCode(e164: String): Boolean {
+        val result = otp.requestCode(e164)
+        if (!result.ok) {
+            phoneError = result.message.ifBlank { "Couldn't send a code." }
+            publish()
+            return false
+        }
+        pendingPhone = e164
+        otpSentAtMs = clock.nowEpochMs()
+        phoneError = ""
+        otpError = ""
+        publish()
+        return true
+    }
+
+    private fun writeSession(phone: String): Boolean {
+        val issued = clock.nowEpochMs()
+        val session = AuthSession(
+            phoneE164 = phone,
+            issuedAtMs = issued,
+            token = "sess_${issued}_${phone.takeLast(4)}",
+        )
+        return secure.put(SecureKeys.SESSION, session.encode())
+    }
+
+    private fun readSession(): AuthSession? =
+        secure.read(SecureKeys.SESSION)?.let(AuthSession::decode)
+
+    private fun finishUnlockSetup() {
+        if (!emailDecided()) store.write(Keys.EMAIL_DECIDED, "true")
+        store.write(Keys.AUTH_SETUP, "true")
+        deviceUnlocked = true
+        pinError = ""
+        if (introComplete() && !onboardingComplete()) {
+            onboardingStep = 3
+            store.write(Keys.STEP, "3")
+        }
+        publish()
+    }
 
     private fun banksLinked(): Boolean = store.read(Keys.BANKS) == "true"
 
@@ -703,6 +1103,12 @@ class AiCfoController(
     }
 }
 
+private fun releaseNeedsRealSecureStore(): SecureStore {
+    throw IllegalArgumentException(
+        "Release builds must pass a SecureStore. MemorySecureStore is only for debug and tests.",
+    )
+}
+
 object Qa {
     /** True only for a debug/DEBUG build. Release always returns false. */
     fun toolsEnabled(debugBuild: Boolean): Boolean = debugBuild
@@ -710,8 +1116,16 @@ object Qa {
 
 private val MainTabs = setOf("HOME", "MOVES", "ACCOUNTS", "SETTINGS")
 
+private const val RESEND_SEC = 30
+
 private object Keys {
     const val ONBOARDING = "onboarding_complete"
+    const val INTRO = "intro_complete"
+    const val AUTH_SETUP = "auth_setup_complete"
+    const val EMAIL_DECIDED = "report_email_decided"
+    const val REPORT_EMAIL = "report_email"
+    const val PIN_SET = "device_pin_set"
+    const val PASSCODE = "passcode_fallback"
     const val STEP = "onboarding_step"
     const val BANKS = "banks_linked"
     const val TRIAL_START = "trial_started_at"

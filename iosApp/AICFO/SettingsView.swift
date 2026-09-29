@@ -31,21 +31,66 @@ struct SettingsView: View {
                 .padding(16)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .softCard()
+                Text("SECURITY")
+                    .font(Theme.semi(12))
+                    .foregroundStyle(Theme.muted)
+                    .tracking(1.1)
+                HStack(spacing: 12) {
+                    Image(systemName: "faceid")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(Theme.accent)
+                        .frame(width: 44, height: 44)
+                        .background(Theme.accentSoft, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Unlock with Face ID").font(Theme.semi(16)).foregroundStyle(Theme.text)
+                        Text("Required on each cold start while signed in")
+                            .font(Theme.body(13)).foregroundStyle(Theme.muted)
+                    }
+                    Spacer()
+                    Toggle("", isOn: Binding(
+                        get: { settings.biometricEnabled },
+                        set: { model.controller.setBiometricEnabled(enabled: $0) }
+                    ))
+                    .labelsHidden()
+                    .tint(Theme.accent)
+                }
+                .padding(16)
+                .softCard(radius: 22)
+                Text("Session stays signed in. Phone + OTP only after Log out, reinstall, or cleared session.")
+                    .font(Theme.body(13))
+                    .foregroundStyle(Theme.muted)
+                if settings.deviceLockReady {
+                    SecondaryButton(label: "Lock now") { model.controller.lockNow() }
+                }
+                Text("ACCOUNT")
+                    .font(Theme.semi(12))
+                    .foregroundStyle(Theme.muted)
+                    .tracking(1.1)
+                Button {
+                    model.controller.logOut()
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "rectangle.portrait.and.arrow.right")
+                            .foregroundStyle(Theme.danger)
+                            .frame(width: 44, height: 44)
+                            .background(Theme.dangerSoft, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Log out").font(Theme.semi(16)).foregroundStyle(Theme.danger)
+                            Text("Clears session — next open asks for phone + OTP")
+                                .font(Theme.body(13)).foregroundStyle(Theme.muted)
+                                .multilineTextAlignment(.leading)
+                        }
+                        Spacer()
+                    }
+                    .padding(16)
+                    .softCard(radius: 22)
+                }
+                .buttonStyle(.plain)
                 toggleRow(
                     "Notifications",
                     "A dot on Home when a move is waiting.",
                     settings.notificationsEnabled
                 ) { model.controller.setNotifications(enabled: $0) }
-                toggleRow(
-                    "Biometric lock",
-                    settings.biometricHardware
-                        ? "Ask for biometrics each time the app opens."
-                        : "No biometric hardware on this device. The gate still shows a continue path.",
-                    settings.biometricEnabled
-                ) { model.controller.setBiometricEnabled(enabled: $0) }
-                if settings.biometricEnabled {
-                    SecondaryButton(label: "Lock now") { model.controller.lockNow() }
-                }
                 VStack(alignment: .leading, spacing: 8) {
                     Text("About").font(Theme.semi(16)).foregroundStyle(Theme.text)
                     Text(settings.brandTagline).font(Theme.body(15)).foregroundStyle(Theme.text)

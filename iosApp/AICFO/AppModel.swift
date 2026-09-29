@@ -27,6 +27,7 @@ final class AppModel: ObservableObject {
     init() {
         let vault = KeychainTokenVault()
         let store = DefaultsStore()
+        let secure = KeychainSecureStore()
         #if DEBUG
         let debugBuild = true
         #else
@@ -38,7 +39,8 @@ final class AppModel: ObservableObject {
             clock: SystemAppClock(),
             market: Markets.shared.unitedStates(),
             localStrings: BundleLocalStrings(),
-            debugBuild: debugBuild
+            debugBuild: debugBuild,
+            secure: secure
         )
         let bridge = BridgeObserver()
         observer = bridge
@@ -56,19 +58,43 @@ final class AppModel: ObservableObject {
         controller.setBiometricHardware(available: can)
     }
 
-    func unlock() {
+    func unlockWithBiometrics(onSuccess: (() -> Void)? = nil) {
         let context = LAContext()
         var error: NSError?
-        if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) {
-            controller.setBiometricHardware(available: true)
-            context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: "Unlock Finwise") { ok, _ in
-                Task { @MainActor in
-                    self.controller.unlockFromBiometric(success: ok)
+        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) else {
+            controller.setBiometricHardware(available: false)
+            return
+        }
+        controller.setBiometricHardware(available: true)
+        context.evaluatePolicy(
+            .deviceOwnerAuthenticationWithBiometrics,
+            localizedReason: "Unlock Finwise on this device. This does not sign you in."
+        ) { ok, _ in
+            Task { @MainActor in
+                if ok {
+                    onSuccess?()
+                    if onSuccess == nil {
+                        self.controller.unlockFromBiometric(success: true)
+                    }
                 }
             }
-        } else {
-            controller.setBiometricHardware(available: false)
-            controller.unlockWithoutHardware()
+        }
+    }
+
+    func unlockWithPasscode(onSuccess: (() -> Void)? = nil) {
+        let context = LAContext()
+        context.evaluatePolicy(
+            .deviceOwnerAuthentication,
+            localizedReason: "Unlock Finwise with your device passcode. This does not sign you in."
+        ) { ok, _ in
+            Task { @MainActor in
+                guard ok else { return }
+                if let onSuccess {
+                    onSuccess()
+                } else {
+                    self.controller.unlockFromDevicePasscode(success: true)
+                }
+            }
         }
     }
 

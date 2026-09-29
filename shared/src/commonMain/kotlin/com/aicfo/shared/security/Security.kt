@@ -11,10 +11,22 @@ interface TokenVault {
     fun clear()
 }
 
-/** Non-secret flags: onboarding, trial clock, move status, sync metadata. Not for tokens. */
+/** Non-secret flags: onboarding, trial clock, move status, sync metadata, unlock prefs. Not for tokens. */
 interface LocalStore {
     fun read(key: String): String?
     fun write(key: String, value: String)
+    fun remove(key: String)
+}
+
+/**
+ * Encrypted at rest (Android Keystore, iOS Keychain).
+ * Account session and the device PIN live here. Never log values.
+ * This is separate from [TokenVault] so a logout does not wipe bank link tokens,
+ * and link-token policy does not reject session records.
+ */
+interface SecureStore {
+    fun put(key: String, value: String): Boolean
+    fun read(key: String): String?
     fun remove(key: String)
 }
 
@@ -31,6 +43,21 @@ class MemoryTokenVault : TokenVault {
 
     override fun clear() {
         values.clear()
+    }
+}
+
+class MemorySecureStore : SecureStore {
+    private val values = mutableMapOf<String, String>()
+
+    override fun put(key: String, value: String): Boolean {
+        values[key] = value
+        return true
+    }
+
+    override fun read(key: String): String? = values[key]
+
+    override fun remove(key: String) {
+        values.remove(key)
     }
 }
 
@@ -83,7 +110,9 @@ object TlsPolicy {
 
 object SafeLog {
     private val token = Regex("""link_[A-Za-z0-9_\-]+""")
-    private val secretAssign = Regex("""(?i)\b(password|passwd|secret|token|ssn|cvv)\b\s*[:=]\s*\S+""")
+    private val session = Regex("""sess_[A-Za-z0-9_\-]+""")
+    private val secretAssign = Regex("""(?i)\b(password|passwd|secret|token|ssn|cvv|otp|pin)\b\s*[:=]\s*\S+""")
+    private val otpCode = Regex("""(?i)\b(?:otp|one-time code|verification code)\b\s*[:=]?\s*\d{4,8}""")
     private val email = Regex("""[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}""")
     private val longNumber = Regex("""\b\d{13,19}\b""")
 
@@ -94,6 +123,8 @@ object SafeLog {
         }
         return secrets
             .replace(token, "link_[redacted]")
+            .replace(session, "sess_[redacted]")
+            .replace(otpCode, "otp=[redacted]")
             .replace(email, "[redacted-email]")
             .replace(longNumber, "[redacted-number]")
     }

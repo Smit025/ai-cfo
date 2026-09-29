@@ -14,6 +14,7 @@ import com.aicfo.shared.presentation.Phase
 import com.aicfo.shared.presentation.QaOverride
 import com.aicfo.shared.security.LinkPolicy
 import com.aicfo.shared.security.MemoryLocalStore
+import com.aicfo.shared.security.MemorySecureStore
 import com.aicfo.shared.security.MemoryTokenVault
 import com.aicfo.shared.security.TokenVault
 import com.aicfo.shared.security.PiiPolicy
@@ -207,11 +208,14 @@ class AiCfoLogicTest {
         app.primaryOnboarding()
         assertEquals(2, app.onboarding().step)
         app.secondaryOnboarding()
-        assertEquals(3, app.onboarding().step)
+        assertEquals(Gate.AUTH, app.gate())
+        assertEquals(2, app.onboarding().step)
         assertNull(vault.read("institution.chase-checking"))
         assertFalse(app.accounts().linked)
 
+        app.testingSeedSession()
         val trial = app.onboarding()
+        assertEquals(3, trial.step)
         assertEquals("30 days free · Pro", trial.badge)
         assertEquals("Start free 30-day trial", trial.primaryCta)
         assertEquals("Maybe later", trial.secondaryCta)
@@ -229,7 +233,8 @@ class AiCfoLogicTest {
         app.advanceOnboarding()
         app.advanceOnboarding()
         app.primaryOnboarding()
-        assertEquals(3, app.onboarding().step)
+        assertEquals(Gate.AUTH, app.gate())
+        assertEquals(2, app.onboarding().step)
         assertEquals("link_stub_chase-checking", vault.read("institution.chase-checking"))
         assertTrue(app.accounts().linked)
     }
@@ -237,12 +242,15 @@ class AiCfoLogicTest {
     @Test
     fun logsRedactTokensPasswordsAndCardNumbers() {
         val cleaned = SafeLog.redact(
-            "saved link_stub_chase-checking password=hunter2 4111111111111111",
+            "saved link_stub_chase-checking password=hunter2 4111111111111111 sess_1700_1234 otp 000000",
         )
         assertFalse(cleaned.contains("hunter2"))
         assertFalse(cleaned.contains("link_stub_chase-checking"))
         assertFalse(cleaned.contains("4111111111111111"))
+        assertFalse(cleaned.contains("sess_1700_1234"))
+        assertFalse(cleaned.contains("000000"))
         assertTrue(cleaned.contains("[redacted]"))
+        assertTrue(cleaned.contains("sess_[redacted]"))
         assertFalse(TlsPolicy.cleartextAllowed)
         TlsPolicy.requireHttps("https://api.aicfo.app")
     }
@@ -285,10 +293,11 @@ class AiCfoLogicTest {
     @Test
     fun debugBuildLeavesBiometricOffUntilTheUserOptsIn() {
         val store = MemoryLocalStore()
-        val app = AiCfoController(MemoryTokenVault(), store, MutableClock(10L))
+        val secure = MemorySecureStore()
+        val app = AiCfoController(MemoryTokenVault(), store, MutableClock(10L), secure)
         finishOnboarding(app)
         assertFalse(app.settings().biometricEnabled)
-        val restarted = AiCfoController(MemoryTokenVault(), store, MutableClock(10L))
+        val restarted = AiCfoController(MemoryTokenVault(), store, MutableClock(10L), secure)
         assertFalse(restarted.settings().biometricEnabled)
         assertEquals(Gate.APP, restarted.gate())
         restarted.setBiometricEnabled(true)
@@ -300,16 +309,18 @@ class AiCfoLogicTest {
     @Test
     fun releaseBuildLocksWhenBiometricPreferenceIsUnset() {
         val store = MemoryLocalStore()
-        val app = releaseApp(MutableClock(10L), store)
+        val secure = MemorySecureStore()
+        val app = releaseApp(MutableClock(10L), store, secure)
         finishOnboarding(app)
         assertTrue(app.settings().biometricEnabled)
-        val restarted = releaseApp(MutableClock(10L), store)
+        val restarted = releaseApp(MutableClock(10L), store, secure)
         assertTrue(restarted.settings().biometricEnabled)
         assertEquals(Gate.LOCK, restarted.gate())
         restarted.setBiometricEnabled(false)
-        val optedOut = releaseApp(MutableClock(10L), store)
+        val optedOut = releaseApp(MutableClock(10L), store, secure)
         assertFalse(optedOut.settings().biometricEnabled)
-        assertEquals(Gate.APP, optedOut.gate())
+        assertEquals(Gate.LOCK, optedOut.gate())
+        assertTrue(optedOut.lock().mustCreatePin)
     }
 
     @Test
@@ -369,7 +380,11 @@ class AiCfoLogicTest {
         return AiCfoController(MemoryTokenVault(), MemoryLocalStore(), clock)
     }
 
-    private fun releaseApp(clock: MutableClock, store: MemoryLocalStore = MemoryLocalStore()): AiCfoController {
+    private fun releaseApp(
+        clock: MutableClock,
+        store: MemoryLocalStore = MemoryLocalStore(),
+        secure: MemorySecureStore = MemorySecureStore(),
+    ): AiCfoController {
         return AiCfoController(
             MemoryTokenVault(),
             store,
@@ -377,14 +392,21 @@ class AiCfoLogicTest {
             Markets.unitedStates(),
             EmptyLocalStrings,
             false,
+            secure,
         )
     }
 
     private fun finishOnboarding(app: AiCfoController) {
         repeat(8) {
-            if (app.gate() != Gate.ONBOARDING) return
+            if (app.gate() != Gate.ONBOARDING) return@repeat
             app.primaryOnboarding()
         }
+        if (!app.hasSession()) app.testingSeedSession()
+        repeat(4) {
+            if (app.gate() != Gate.ONBOARDING) return@repeat
+            app.primaryOnboarding()
+        }
+        if (app.gate() == Gate.LOCK) app.unlockFromBiometric(true)
         assertEquals(Gate.APP, app.gate())
     }
 }

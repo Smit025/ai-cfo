@@ -2,9 +2,19 @@ package com.aicfo.shared.presentation
 
 object Gate {
     const val ONBOARDING = "ONBOARDING"
+    const val AUTH = "AUTH"
     const val LOCK = "LOCK"
     const val PAYWALL = "PAYWALL"
+    /** Main shell (Home / Moves / Accounts / Settings). */
     const val APP = "APP"
+}
+
+object AuthStep {
+    const val PHONE = "PHONE"
+    const val OTP = "OTP"
+    const val EMAIL = "EMAIL"
+    const val UNLOCK = "UNLOCK"
+    const val DONE = "DONE"
 }
 
 object Phase {
@@ -257,6 +267,9 @@ data class SettingsModel(
     val banksLinked: Boolean,
     val phase: String,
     val qaEnabled: Boolean,
+    val signedIn: Boolean = false,
+    val phoneMask: String = "",
+    val deviceLockReady: Boolean = false,
 )
 
 data class LockModel(
@@ -265,6 +278,14 @@ data class LockModel(
     val body: String,
     val primaryCta: String,
     val hardwareAvailable: Boolean,
+    val kicker: String = "",
+    val secondaryCta: String = "",
+    val methodTitle: String = "",
+    val methodDetail: String = "",
+    val pinSet: Boolean = false,
+    val mustCreatePin: Boolean = false,
+    val preferPin: Boolean = false,
+    val passcodeFallback: Boolean = false,
 )
 
 data class EntitlementSnapshot(

@@ -9,11 +9,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
@@ -21,6 +23,7 @@ import androidx.compose.ui.test.swipeDown
 import com.aicfo.shared.domain.AiCfoController
 import com.aicfo.shared.domain.AppClock
 import com.aicfo.shared.domain.AppObserver
+import com.aicfo.shared.presentation.AuthStep
 import com.aicfo.shared.presentation.Gate
 import com.aicfo.shared.presentation.Phase
 import com.aicfo.shared.sync.SyncStatus
@@ -155,10 +158,7 @@ class AutomationSemanticsTest {
     @Test
     fun paywallCtasDismissTheHardPaywall() {
         val controller = debugController()
-        repeat(8) {
-            if (controller.gate() != Gate.ONBOARDING) return@repeat
-            controller.primaryOnboarding()
-        }
+        reachMain(controller)
         controller.debugForcePaywall()
         rule.setContent { PaywallScreen(controller, tick = 0) }
 
@@ -194,6 +194,72 @@ class AutomationSemanticsTest {
             assertEquals(Gate.APP, controller.gate())
             assertEquals(Phase.PRO, controller.settings().phase)
             assertEquals("Finwise Pro · monthly", controller.settings().planLabel)
+        }
+    }
+
+    @Test
+    fun authScreensRenderThePhoneEmailPinAndColdUnlockBoards() {
+        val controller = debugController()
+        repeat(8) {
+            if (controller.gate() != Gate.ONBOARDING) return@repeat
+            controller.primaryOnboarding()
+        }
+        assertEquals(Gate.AUTH, controller.gate())
+        assertEquals(AuthStep.PHONE, controller.authStep())
+        val tick = mutableStateOf(0)
+        val showLock = mutableStateOf(false)
+        rule.setContent {
+            if (showLock.value) {
+                LockScreen(controller, tick.value) {}
+            } else {
+                AuthFlowScreen(controller, tick.value)
+            }
+        }
+        rule.onNodeWithText("What's your number?").assertIsDisplayed()
+        rule.onNodeWithText("We'll text a one-time code. No password to remember.").assertIsDisplayed()
+        rule.onNodeWithText("Continue").assertIsDisplayed()
+
+        controller.debugSkipPhone()
+        tick.value = 1
+        rule.onNodeWithText("Where should we send your wins?").assertIsDisplayed()
+        rule.onNodeWithText("Skip for now").assertIsDisplayed()
+
+        controller.skipReportEmail()
+        tick.value = 2
+        rule.onNodeWithText("Create a 6-digit PIN").assertIsDisplayed()
+        rule.onNodeWithText("Enter PIN · confirm next").assertIsDisplayed()
+
+        controller.saveDevicePin("123456", "123456")
+        controller.primaryOnboarding()
+        controller.lockNow()
+        assertEquals(Gate.LOCK, controller.gate())
+        showLock.value = true
+        tick.value = 3
+        rule.onNodeWithText("Enter your PIN").assertIsDisplayed()
+        rule.onNodeWithText("Device unlock only. Your account stays signed in with phone + OTP.")
+            .assertIsDisplayed()
+
+        controller.setBiometricHardware(true)
+        controller.setBiometricEnabled(true)
+        tick.value = 4
+        rule.onNodeWithText("WELCOME BACK").assertIsDisplayed()
+        rule.onNodeWithText("Unlock Finwise").assertIsDisplayed()
+        rule.onNodeWithText("Unlock with biometrics").performScrollTo().assertIsDisplayed()
+    }
+
+    private fun reachMain(controller: AiCfoController) {
+        repeat(8) {
+            if (controller.gate() != Gate.ONBOARDING) return@repeat
+            controller.primaryOnboarding()
+        }
+        if (controller.gate() == Gate.AUTH) {
+            controller.debugSkipPhone()
+            controller.skipReportEmail()
+            controller.debugCompleteUnlockSetup()
+        }
+        repeat(4) {
+            if (controller.gate() != Gate.ONBOARDING) return@repeat
+            controller.primaryOnboarding()
         }
     }
 
