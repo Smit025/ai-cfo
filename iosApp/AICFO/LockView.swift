@@ -47,7 +47,7 @@ struct LockView: View {
                     .font(Theme.title(18))
                     .foregroundStyle(Theme.text)
                     .padding(.top, 6)
-                Text("Device unlock only · account stays via phone+OTP")
+                Text("Device unlock only. Your account stays signed in.")
                     .font(Theme.body(13))
                     .foregroundStyle(Theme.muted)
                     .multilineTextAlignment(.center)

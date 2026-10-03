@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,15 +26,23 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aicfo.app.BuildConfig
 import com.aicfo.app.theme.AiColors
+import com.aicfo.shared.auth.PhoneNumbers
 import com.aicfo.shared.domain.AiCfoController
 
 @Composable
@@ -98,7 +108,7 @@ fun SettingsScreen(controller: AiCfoController, tick: Int) {
             )
         }
         Text(
-            "Session stays signed in. Phone + OTP only after Log out, reinstall, or cleared session.",
+            "Session stays signed in. Email sign-in comes back only after Log out, reinstall, or a cleared session.",
             color = AiColors.Muted,
             fontSize = 13.sp,
             lineHeight = 18.sp,
@@ -106,6 +116,8 @@ fun SettingsScreen(controller: AiCfoController, tick: Int) {
         if (model.deviceLockReady) {
             SecondaryButton("Lock now") { controller.lockNow() }
         }
+        SectionLabel("PROFILE")
+        OptionalPhoneRow(controller, tick)
         SectionLabel("ACCOUNT")
         Row(
             Modifier
@@ -130,7 +142,7 @@ fun SettingsScreen(controller: AiCfoController, tick: Int) {
                 Text("Log out", color = AiColors.Danger, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                 Spacer(Modifier.height(2.dp))
                 Text(
-                    "Clears session — next open asks for phone + OTP",
+                    "Clears the session. Next open asks for your email.",
                     color = AiColors.Muted,
                     fontSize = 13.sp,
                     lineHeight = 18.sp,
@@ -213,6 +225,51 @@ private fun QaAction(
         PrimaryButton(label, modifier, onClick = onClick)
     } else {
         SecondaryButton(label, modifier, onClick)
+    }
+}
+
+@Composable
+private fun OptionalPhoneRow(controller: AiCfoController, tick: Int) {
+    var digits by remember { mutableStateOf(PhoneNumbers.usDigits(controller.profilePhone())) }
+    val error = remember(tick) { controller.profilePhoneError() }
+    Column(Modifier.fillMaxWidth().softCard(radius = 22.dp).padding(16.dp)) {
+        Text("Phone number", color = AiColors.Text, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "Optional. Not used to sign in, and not required to open the app.",
+            color = AiColors.Muted,
+            fontSize = 13.sp,
+            lineHeight = 18.sp,
+        )
+        Spacer(Modifier.height(10.dp))
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(52.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(AiColors.Bg)
+                .padding(horizontal = 14.dp),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            if (digits.isEmpty()) {
+                Text("(555) 000-0000", color = Color(0xFFC5CAD6), fontSize = 16.sp)
+            }
+            BasicTextField(
+                value = PhoneNumbers.formatNational(digits),
+                onValueChange = { digits = PhoneNumbers.usDigits(it) },
+                textStyle = TextStyle(color = AiColors.Text, fontSize = 16.sp),
+                singleLine = true,
+                cursorBrush = SolidColor(AiColors.Accent),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        if (error.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            Text(error, color = AiColors.Danger, fontSize = 13.sp)
+        }
+        Spacer(Modifier.height(10.dp))
+        SecondaryButton("Save phone") { controller.saveProfilePhone(digits) }
     }
 }
 

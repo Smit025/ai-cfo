@@ -1,12 +1,36 @@
 # Auth design references
 
-Session and unlock rules: [MARK-HANDOFF.md](MARK-HANDOFF.md). Product behavior is summarized in [docs/AUTH.md](../../AUTH.md).
+The current login is an email plus a one-time code or magic link ([docs/AUTH.md](../../AUTH.md)). [MARK-HANDOFF.md](MARK-HANDOFF.md) is the old phone spec.
 
-## Implemented Android screens
+## Device screenshots (Galaxy S23 FE)
 
-Captured from Jetpack Compose with Robolectric (`GraphicsMode.NATIVE`, software draw of the activity). There is no emulator in this environment, and `captureToImage` did not receive a draw frame, so these are view draws rather than device screenshots. Debug-only labels (**Debug skip**, **Fill debug code**) are visible. iOS Face ID enable is not captured here.
+These three PNGs are the full-resolution stills (1080×2340) of the email login on a real phone. Galaxy S23 FE, Android 16, Sauce Labs session [e862d7ed-6c66-4ea1-b3fa-3aab6098d8e1](https://app.saucelabs.com/tests/e862d7ed-6c66-4ea1-b3fa-3aab6098d8e1). The installed app is commit `0ae985b01f401c38ca1457c1bac583575e74e6ed`. They are device screenshots, not Compose captures, and they replace the earlier frames taken from the session recording. iOS was not compiled.
 
-Reed’s blocking list, each one a PNG (not a semantics check):
+| # | Screen | File |
+| --- | --- | --- |
+| 1 | Email entry, before a session. "Email me a code" is still on screen | [device/01-email-entry.png](device/01-email-entry.png) |
+| 2 | One-time code entry after a valid email. No mail was sent | [device/02-code-entry.png](device/02-code-entry.png) |
+| 3 | Cold-start PIN lock with a saved session. Device unlock only. No biometric prompt | [device/03-cold-unlock.png](device/03-cold-unlock.png) |
+
+## Email login (Compose fallback, not these shots)
+
+The PNGs in `email-login/` are an earlier Robolectric draw of the same screens. They are not device screenshots and they are not the shots above. An Android 15 emulator was started on the build machine, but the guest never finished booting, so those files were drawn from Compose instead. Debug copy is visible, including the code `000000`. No mail is sent. They are not iOS.
+
+| # | Screen | File |
+| --- | --- | --- |
+| 1 | Email entry, before a session exists | [email-login/01-email-entry.png](email-login/01-email-entry.png) |
+| 2 | One-time code entry, after a valid email was submitted and before a session exists | [email-login/02-code-entry.png](email-login/02-code-entry.png) |
+| 3 | Signed-in lock on a cold start with a saved session. This capture has no biometric hardware, so the lock is the PIN pad | [email-login/03-cold-unlock.png](email-login/03-cold-unlock.png) |
+
+## Previous phone + OTP boards
+
+The PNGs in `implemented/` are the old phone flow. They are not this login.
+
+## Old phone boards (not this login)
+
+These files are the previous phone + OTP flow. Debug-only labels (**Debug skip**, **Fill debug code**) are from that flow. Do not present them as the email login.
+
+Reed’s earlier phone list, each one a PNG:
 
 | # | Required | File |
 | --- | --- | --- |

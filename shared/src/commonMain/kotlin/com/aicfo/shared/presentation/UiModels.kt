@@ -10,9 +10,8 @@ object Gate {
 }
 
 object AuthStep {
-    const val PHONE = "PHONE"
-    const val OTP = "OTP"
     const val EMAIL = "EMAIL"
+    const val CODE = "CODE"
     const val UNLOCK = "UNLOCK"
     const val DONE = "DONE"
 }

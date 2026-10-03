@@ -1,5 +1,7 @@
 # Mark handoff — Finwise auth (phone + OTP)
 
+> **Superseded.** Account login is an email address plus a one-time code or magic link. Phone is optional profile data, not the session. See [docs/AUTH.md](../../AUTH.md). The boards below are the old phone flow. Do not build SMS or Sign in with Google from this file.
+
 **Product:** Finwise — Your AI CFO  
 **From:** Sofia look pack (Susmit / Elon session + security bar)  
 **To:** Mark (eng) — visual direction + session / unlock model; HOLD deep UI until Susmit likes core pack

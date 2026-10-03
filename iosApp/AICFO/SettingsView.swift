@@ -3,6 +3,8 @@ import Shared
 
 struct SettingsView: View {
     @EnvironmentObject private var model: AppModel
+    @State private var phoneDigits = ""
+    @State private var phoneSeeded = false
 
     var body: some View {
         let settings = model.controller.settings()
@@ -56,11 +58,44 @@ struct SettingsView: View {
                 }
                 .padding(16)
                 .softCard(radius: 22)
-                Text("Session stays signed in. Phone + OTP only after Log out, reinstall, or cleared session.")
+                Text("Session stays signed in. Email sign-in comes back only after Log out, reinstall, or a cleared session.")
                     .font(Theme.body(13))
                     .foregroundStyle(Theme.muted)
                 if settings.deviceLockReady {
                     SecondaryButton(label: "Lock now") { model.controller.lockNow() }
+                }
+                Text("PROFILE")
+                    .font(Theme.semi(12))
+                    .foregroundStyle(Theme.muted)
+                    .tracking(1.1)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Phone number").font(Theme.semi(16)).foregroundStyle(Theme.text)
+                    Text("Optional. Not used to sign in, and not required to open the app.")
+                        .font(Theme.body(13)).foregroundStyle(Theme.muted)
+                    TextField("(555) 000-0000", text: $phoneDigits)
+                        .keyboardType(.phonePad)
+                        .font(Theme.body(16))
+                        .padding(.horizontal, 14)
+                        .frame(height: 52)
+                        .background(Theme.bg, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    if !model.controller.profilePhoneError().isEmpty {
+                        Text(model.controller.profilePhoneError())
+                            .font(Theme.body(13))
+                            .foregroundStyle(Theme.danger)
+                    }
+                    SecondaryButton(label: "Save phone") {
+                        _ = model.controller.saveProfilePhone(raw: phoneDigits)
+                    }
+                }
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .softCard(radius: 22)
+                .onAppear {
+                    if !phoneSeeded {
+                        phoneSeeded = true
+                        let digits = model.controller.profilePhone().filter(\.isNumber)
+                        phoneDigits = digits.count > 10 ? String(digits.suffix(10)) : String(digits)
+                    }
                 }
                 Text("ACCOUNT")
                     .font(Theme.semi(12))
@@ -76,7 +111,7 @@ struct SettingsView: View {
                             .background(Theme.dangerSoft, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Log out").font(Theme.semi(16)).foregroundStyle(Theme.danger)
-                            Text("Clears session — next open asks for phone + OTP")
+                            Text("Clears the session. Next open asks for your email.")
                                 .font(Theme.body(13)).foregroundStyle(Theme.muted)
                                 .multilineTextAlignment(.leading)
                         }

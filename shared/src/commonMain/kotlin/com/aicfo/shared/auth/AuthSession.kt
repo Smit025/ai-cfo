@@ -1,24 +1,25 @@
 package com.aicfo.shared.auth
 
 /**
- * Account session persisted after the first successful phone OTP.
- * Biometric and PIN checks are not part of this record — they never sign the user in.
+ * Account session persisted after a verified email code or magic link.
+ * The address alone is not a session. Biometric and PIN checks are not part of this record.
  */
 data class AuthSession(
-    val phoneE164: String,
+    val email: String,
     val issuedAtMs: Long,
     val token: String,
 ) {
-    fun encode(): String = "$phoneE164|$issuedAtMs|$token"
+    fun encode(): String = "$email|$issuedAtMs|$token"
 
     companion object {
         fun decode(raw: String): AuthSession? {
             val parts = raw.split('|')
             if (parts.size != 3) return null
-            if (!PhoneNumbers.isValidUs(parts[0])) return null
+            val email = EmailAddress.normalize(parts[0]) ?: return null
+            if (email != parts[0]) return null
             val issued = parts[1].toLongOrNull() ?: return null
             if (parts[2].isBlank()) return null
-            return AuthSession(parts[0], issued, parts[2])
+            return AuthSession(email, issued, parts[2])
         }
     }
 }

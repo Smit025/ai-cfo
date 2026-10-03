@@ -95,8 +95,8 @@ object PiiPolicy {
 }
 
 /**
- * TLS and certificate-pinning hooks. No live network ships in this scaffold.
- * Replace [spkiPins] with the production SPKI pin before any API host is called.
+ * TLS and certificate-pinning hooks. The phone calls the login server over HTTPS.
+ * [spkiPins] is still a placeholder and is not applied to that host.
  */
 object TlsPolicy {
     const val cleartextAllowed: Boolean = false
@@ -112,6 +112,7 @@ object SafeLog {
     private val token = Regex("""link_[A-Za-z0-9_\-]+""")
     private val session = Regex("""sess_[A-Za-z0-9_\-]+""")
     private val secretAssign = Regex("""(?i)\b(password|passwd|secret|token|ssn|cvv|otp|pin)\b\s*[:=]\s*\S+""")
+    private val bearer = Regex("""(?i)\bBearer\s+\S+""")
     private val otpCode = Regex("""(?i)\b(?:otp|one-time code|verification code)\b\s*[:=]?\s*\d{4,8}""")
     private val email = Regex("""[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}""")
     private val longNumber = Regex("""\b\d{13,19}\b""")
@@ -122,6 +123,7 @@ object SafeLog {
             "$key=[redacted]"
         }
         return secrets
+            .replace(bearer, "Bearer [redacted]")
             .replace(token, "link_[redacted]")
             .replace(session, "sess_[redacted]")
             .replace(otpCode, "otp=[redacted]")

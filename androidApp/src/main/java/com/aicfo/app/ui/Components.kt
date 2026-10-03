@@ -198,6 +198,8 @@ internal object AutomationTags {
 
     const val PAYWALL_CONTINUE_YEARLY = "paywall_continue_yearly"
     const val PAYWALL_CONTINUE_MONTHLY = "paywall_continue_monthly"
+    const val AUTH_EMAIL = "auth_email"
+    const val AUTH_CODE = "auth_code"
 }
 
 /**

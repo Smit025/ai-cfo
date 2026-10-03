@@ -34,6 +34,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aicfo.app.BuildConfig
+import com.aicfo.app.auth.LoginServerConfig
 import com.aicfo.app.i18n.AndroidLocalStrings
 import com.aicfo.app.security.AndroidKeystoreSecureStore
 import com.aicfo.app.security.AndroidKeystoreTokenVault
@@ -55,6 +56,7 @@ class AiCfoViewModel(app: Application) : AndroidViewModel(app) {
         localStrings = AndroidLocalStrings(app),
         debugBuild = BuildConfig.DEBUG,
         secure = AndroidKeystoreSecureStore(app),
+        emailAuth = LoginServerConfig.repository(BuildConfig.DEBUG),
     )
     private var coldStartSent = false
 

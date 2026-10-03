@@ -15,4 +15,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "ai-cfo"
-include(":shared", ":androidApp")
+include(":shared", ":androidApp", ":login-server")
