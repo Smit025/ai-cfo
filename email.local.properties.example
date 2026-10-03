@@ -1,12 +1,8 @@
 # Copy to email.local.properties (gitignored). Do not commit a real key.
 #
-# Finwise does not read this file. Release builds fail closed until a human
-# implements EmailAuthRepository and passes it into AiCfoController.
-# Debug builds accept code 000000 and do not send mail.
+# Release reads these names from the process environment, then from
+# email.local.properties. Debug builds ignore them and do not send mail.
+# Leave a name blank and a release build fails closed.
 #
-# A real code or magic link needs a transactional mail provider
-# (any inbox: Gmail, Outlook, Apple Mail, or others). Put that provider's
-# API key here, then wire the sender. Do not invent a session without it.
-#
-# FINWISE_EMAIL_PROVIDER=
-# FINWISE_EMAIL_API_KEY=
+# FINWISE_RESEND_API_KEY=
+# FINWISE_RESEND_FROM=

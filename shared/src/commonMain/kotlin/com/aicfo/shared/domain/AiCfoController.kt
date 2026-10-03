@@ -8,6 +8,7 @@ import com.aicfo.shared.auth.EmailAuthRepository
 import com.aicfo.shared.auth.PhoneNumbers
 import com.aicfo.shared.auth.PinSecret
 import com.aicfo.shared.auth.SecureKeys
+import com.aicfo.shared.auth.ResendEmailAuthRepository
 import com.aicfo.shared.auth.StubEmailAuthRepository
 import com.aicfo.shared.auth.UnconfiguredEmailAuthRepository
 import com.aicfo.shared.data.MayaStub
@@ -179,6 +180,9 @@ class AiCfoController(
             throw IllegalArgumentException(
                 "Release builds cannot use the debug email code. Pass a real EmailAuthRepository or leave it unset.",
             )
+        }
+        if (debugBuild && mail is ResendEmailAuthRepository) {
+            throw IllegalArgumentException("Debug builds must not send mail.")
         }
         load()
     }

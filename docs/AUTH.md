@@ -70,20 +70,14 @@ Debug builds do not lock when the user has not chosen biometrics and has not set
 
 `EmailAuthRepository`:
 
-- `StubEmailAuthRepository` — debug builds. A request succeeds for a valid address and does not send mail. Verify accepts `000000` only after that request. Magic links are not issued. More than five sends in one process returns a rate-limit error.
-- `UnconfiguredEmailAuthRepository` — release builds, until a human implements a sender. It never accepts a code or a link. The email button is disabled and the screen says sign-in is not configured.
-- Tests pass a fake. The fake is not in the app.
+- `StubEmailAuthRepository` — debug builds, including when a Resend key is present. A request succeeds for a valid address and does not send mail. Verify accepts `000000` only after that request. Magic links are not issued. More than five sends in one process returns a rate-limit error.
+- `ResendEmailAuthRepository` — release builds when `FINWISE_RESEND_API_KEY` and `FINWISE_RESEND_FROM` are set outside git. `requestChallenge` generates a 6-digit code, POSTs it to `https://api.resend.com/emails`, and does not create a session. Verify accepts that code only. `000000` is refused. A failed POST does not start a session.
+- `UnconfiguredEmailAuthRepository` — release builds with no key or no from address. It never accepts a code or a link, including `000000`. The email button is disabled and the screen says sign-in is not configured.
+- Tests pass a fake transport. The fake is not the app, and it does not contain a real key.
 
-No API key, client secret, or OAuth file is in git. `email.local.properties.example` shows the gitignored file a human would fill in. The app does not read that file.
+The release app reads the key from the process environment first (`FINWISE_RESEND_API_KEY`), then from gitignored `email.local.properties` when that file is readable, then from the copy Gradle made of those same places while building the release APK. Debug builds do not copy the key into the APK and do not read it. `email.local.properties.example` lists the variable names only.
 
-Before a real code or magic link can be sent, someone has to:
-
-1. Choose a transactional email provider that can deliver to any inbox.
-2. Put the provider name and API key in gitignored `email.local.properties` (see the example). Do not commit them.
-3. Implement `EmailAuthRepository` so `requestChallenge` sends either a 6-digit code or a magic link, and `verifyCode` / `verifyMagicLink` checks that challenge.
-4. Pass that implementation into `AiCfoController`. Leave it unset and release keeps failing closed.
-
-Either the code or the link is enough. This Android build verifies the code. `verifyMagicLink` is on the shared controller for a sender that issues a token; nothing in this repo sends the link or registers an app link.
+No API key, client secret, or OAuth file is in git. A magic link is still enough in the shared verifier for a fake sender. This Resend path sends the code only. Nothing in this repo sends the monthly savings report or registers an app link. iOS was not compiled and does not send mail.
 
 ## Settings
 

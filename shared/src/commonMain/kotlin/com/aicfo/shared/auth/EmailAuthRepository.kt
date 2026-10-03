@@ -7,8 +7,9 @@ package com.aicfo.shared.auth
  * A one-time code or a magic-link token is the proof. Submitting the address
  * never creates a session, and this type does not send the monthly savings report.
  *
- * No mail provider ships in the repo. Debug builds use [StubEmailAuthRepository].
- * Release builds use [UnconfiguredEmailAuthRepository] until a human wires a sender.
+ * Debug builds use [StubEmailAuthRepository] and do not send mail.
+ * Release builds use [ResendEmailAuthRepository] when [MailConfig.API_KEY] and
+ * [MailConfig.FROM] are set outside git, and [UnconfiguredEmailAuthRepository] otherwise.
  * See `docs/AUTH.md` and `email.local.properties.example`.
  */
 interface EmailAuthRepository {
