@@ -157,6 +157,8 @@ cp local.properties.example local.properties
 
 A debug build with those two values can open Plaid Link. Leave them blank and the app still builds; Connect says **Plaid is not configured**. In Link, use Plaid’s sandbox institution (First Platypus Bank, `user_good` / `pass_good`). The dashboard must allow package `com.aicfo.app`. Release builds do not embed the secret.
 
+The Plaid item stays for the 30-day Pro trial, or after a simulated monthly or yearly subscription (`subscribed_plan`). Play billing is not wired. When the trial ends with no subscription, the app deletes the Keystore access token, asks sandbox `/item/remove` if it can, and Home bank figures return to “—”. A new link waits until that simulated subscription exists.
+
 Debug APK and release bundle (the `*.apk` / `*.aab` patterns are gitignored):
 
 ```

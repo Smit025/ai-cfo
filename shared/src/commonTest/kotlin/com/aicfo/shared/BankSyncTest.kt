@@ -3,6 +3,7 @@ package com.aicfo.shared
 import com.aicfo.shared.domain.AiCfoController
 import com.aicfo.shared.domain.AppClock
 import com.aicfo.shared.domain.AppObserver
+import com.aicfo.shared.domain.Pricing
 import com.aicfo.shared.market.EmptyLocalStrings
 import com.aicfo.shared.market.Markets
 import com.aicfo.shared.security.LinkPolicy
@@ -11,6 +12,8 @@ import com.aicfo.shared.security.MemoryLocalStore
 import com.aicfo.shared.security.MemorySecureStore
 import com.aicfo.shared.security.MemoryTokenVault
 import com.aicfo.shared.security.TokenVault
+import com.aicfo.shared.presentation.Gate
+import com.aicfo.shared.presentation.Phase
 import com.aicfo.shared.sync.AccountRole
 import com.aicfo.shared.sync.BankFetch
 import com.aicfo.shared.sync.BankLinkId
@@ -495,6 +498,85 @@ class BankSyncTest {
     }
 
     @Test
+    fun inTrialPlaidLinkIsKept() {
+        val harness = TrialPlaidHarness()
+        harness.link()
+        harness.clock.now = harness.start + Pricing.TRIAL_WINDOW_MS - 1L
+        assertEquals(Phase.TRIAL, harness.app.settings().phase)
+        assertEquals(Gate.APP, harness.app.gate())
+        assertEquals(TOKEN, harness.vault.read(TOKEN_KEY))
+        assertEquals("\$1,000", harness.app.home().savingsAmount)
+        assertEquals("\$1,300", harness.app.home().netWorthAmount)
+        assertEquals(BankLinkId.PLAID, harness.store.read("bank_link_kind"))
+        assertEquals("true", harness.store.read("real_bank_sync"))
+        assertEquals(0, harness.source.disconnects)
+        assertEquals("gympass", harness.app.home().moveAt(0).id)
+    }
+
+    @Test
+    fun trialEndedUnpaidRemovesThePlaidLinkAndToken() {
+        val harness = TrialPlaidHarness()
+        harness.link()
+        harness.clock.now = harness.start + Pricing.TRIAL_WINDOW_MS
+        assertEquals(Phase.PAYWALL, harness.app.settings().phase)
+        assertEquals(Gate.PAYWALL, harness.app.gate())
+        assertNull(harness.vault.read(TOKEN_KEY))
+        assertEquals("—", harness.app.home().savingsAmount)
+        assertEquals("—", harness.app.home().netWorthAmount)
+        assertEquals("—", harness.app.home().snapshotAt(0).amount)
+        assertEquals("—", harness.app.home().snapshotAt(1).amount)
+        assertEquals("—", harness.app.home().snapshotAt(2).amount)
+        assertEquals("Balances show after a bank sync", harness.app.home().runway)
+        assertEquals("gympass", harness.app.home().moveAt(0).id)
+        assertFalse(harness.app.accounts().linked)
+        assertNull(harness.store.read("bank_link_kind"))
+        assertEquals("false", harness.store.read("real_bank_sync"))
+        assertEquals(1, harness.source.disconnects)
+        assertEquals("NONE", harness.store.read("subscribed_plan") ?: "NONE")
+    }
+
+    @Test
+    fun reconnectIsBlockedUntilSubscribed() {
+        val harness = TrialPlaidHarness()
+        harness.link()
+        harness.clock.now = harness.start + Pricing.TRIAL_WINDOW_MS
+        harness.app.gate()
+        assertNull(harness.vault.read(TOKEN_KEY))
+        val fetchesBefore = harness.source.fetches
+        assertTrue(harness.vault.put(TOKEN_KEY, TOKEN))
+        assertFalse(harness.app.completeExternalReadOnlyLink(false))
+        assertFalse(harness.app.preparePlaidLink())
+        assertEquals(
+            "Your Pro trial has ended. Subscribe to connect a bank.",
+            harness.app.accounts().linkError,
+        )
+        assertNull(harness.vault.read(TOKEN_KEY))
+        assertFalse(harness.app.accounts().linked)
+        assertEquals("—", harness.app.home().savingsAmount)
+        assertEquals(fetchesBefore, harness.source.fetches)
+        assertEquals(Phase.PAYWALL, harness.app.settings().phase)
+    }
+
+    @Test
+    fun reconnectIsAllowedOnceSubscribed() {
+        val harness = TrialPlaidHarness()
+        harness.link()
+        harness.clock.now = harness.start + Pricing.TRIAL_WINDOW_MS
+        harness.app.gate()
+        assertEquals("—", harness.app.home().savingsAmount)
+        harness.app.purchaseMonthly()
+        assertEquals(Phase.PRO, harness.app.settings().phase)
+        assertTrue(harness.vault.put(TOKEN_KEY, TOKEN))
+        assertTrue(harness.app.plaidConnectionAllowed())
+        assertTrue(harness.app.completeExternalReadOnlyLink(false))
+        assertEquals(TOKEN, harness.vault.read(TOKEN_KEY))
+        assertEquals("\$1,000", harness.app.home().savingsAmount)
+        assertEquals("\$1,300", harness.app.home().netWorthAmount)
+        assertEquals(BankLinkId.PLAID, harness.store.read("bank_link_kind"))
+        assertEquals(Gate.APP, harness.app.gate())
+    }
+
+    @Test
     fun stubSourceIsReadOnly() {
         assertTrue(MayaStubBankSource().readOnly)
         assertEquals("maya-stub", MayaStubBankSource.ID)
@@ -552,10 +634,79 @@ private fun synced(id: String, name: String, minor: Long, role: String, group: S
 )
 
 private class PlaidFakeSource(var next: BankFetch) : BankLinkSource {
+    var fetches: Int = 0
+    var disconnects: Int = 0
     override val id: String = BankLinkId.PLAID
     override val readOnly: Boolean = true
     override fun fetch(nowMs: Long, deliver: (BankFetch) -> Unit) {
+        fetches += 1
         deliver(next)
+    }
+    override fun onDisconnected() {
+        disconnects += 1
+    }
+}
+
+private const val TOKEN_KEY: String = "plaid.access_token"
+private const val TOKEN: String = "access-sandbox-de3ce8ef-33f8-452c-a685-8671031fc0f6"
+
+private class TrialPlaidHarness {
+    val start: Long = 1_700_000_000_000L
+    val clock = ManualClock(start)
+    val vault = MemoryTokenVault()
+    val store = MemoryLocalStore()
+    val source = PlaidFakeSource(
+        BankFetch.Ok(
+            accounts = listOf(
+                synced("sav", "Plaid Savings", 100_000, AccountRole.SAVINGS, "CASH"),
+                synced("chk", "Plaid Checking", 50_000, AccountRole.CASH, "CASH"),
+                synced("card", "Plaid Credit Card", 20_000, AccountRole.CREDIT, "CARDS_AND_LOANS"),
+            ),
+            transactions = listOf(
+                tx("rent", -2_500, "Rent", "RENT_AND_UTILITIES", start),
+                tx("coffee", -1_800, "Coffee", "FOOD_AND_DRINK", start),
+                tx("pay", 50_000, "Payroll", "INCOME", start),
+            ),
+        ),
+    )
+    val app = AiCfoController(
+        vault,
+        store,
+        clock,
+        Markets.unitedStates(),
+        EmptyLocalStrings,
+        true,
+        MemorySecureStore(),
+        source,
+    )
+
+    init {
+        startTrial()
+    }
+
+    fun link() {
+        assertTrue(vault.put(TOKEN_KEY, TOKEN))
+        assertTrue(app.completeExternalReadOnlyLink(false))
+        assertEquals("\$1,000", app.home().savingsAmount)
+    }
+
+    private fun startTrial() {
+        repeat(8) {
+            if (app.gate() != Gate.ONBOARDING) return@repeat
+            if (app.onboarding().step == 2 && app.onboarding().secondaryCta == "Skip for now") {
+                app.secondaryOnboarding()
+            } else {
+                app.primaryOnboarding()
+            }
+        }
+        if (!app.hasSession()) app.testingSeedSession()
+        repeat(4) {
+            if (app.gate() != Gate.ONBOARDING) return@repeat
+            app.primaryOnboarding()
+        }
+        if (app.gate() == Gate.LOCK) app.unlockFromBiometric(true)
+        assertEquals(Gate.APP, app.gate())
+        assertEquals(Phase.TRIAL, app.settings().phase)
     }
 }
 

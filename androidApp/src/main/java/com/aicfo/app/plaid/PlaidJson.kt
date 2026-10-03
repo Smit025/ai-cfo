@@ -57,6 +57,9 @@ internal object PlaidRequests {
     fun balance(clientId: String, secret: String, accessToken: String): JSONObject =
         credentials(clientId, secret).put("access_token", accessToken)
 
+    fun removeItem(clientId: String, secret: String, accessToken: String): JSONObject =
+        credentials(clientId, secret).put("access_token", accessToken)
+
     fun transactionsSync(
         clientId: String,
         secret: String,

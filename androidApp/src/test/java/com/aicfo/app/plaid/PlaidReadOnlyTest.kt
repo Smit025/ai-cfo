@@ -123,6 +123,11 @@ class PlaidReadOnlyTest {
                     200,
                     """{"added":[{"transaction_id":"txn_abc","account_id":"acc_sav","amount":12.00,"iso_currency_code":"USD","date":"2026-10-02","name":"Rent","personal_finance_category":{"primary":"RENT_AND_UTILITIES"}}],"modified":[],"removed":[{"transaction_id":"txn_old"}],"next_cursor":"cursor-2","has_more":false}""",
                 )
+                url.endsWith("/item/remove") -> {
+                    assertEquals(ACCESS, json.getString("access_token"))
+                    assertTrue(url.startsWith(PLAID_SANDBOX_HOST))
+                    PlaidHttpResult(200, """{"request_id":"req-remove"}""")
+                }
                 else -> error("unexpected $url")
             }
         }
@@ -159,7 +164,77 @@ class PlaidReadOnlyTest {
         app.disconnectAll()
         assertNull(vault.read(PlaidBankSource.ACCESS_TOKEN_KEY))
         assertEquals("—", app.home().savingsAmount)
+        assertTrue(calls.any { it.endsWith("/item/remove") })
         assertFalse(calls.any { it.contains("transfer") })
+        assertFalse(calls.any { it.contains("production.plaid.com") })
+    }
+
+    @Test
+    fun removeItemStaysOnSandboxAndAFailedRemoveStillDropsTheLocalToken() {
+        var called = false
+        val production = PlaidHttpApi(
+            "https://production.plaid.com",
+            "client-test",
+            "secret-test",
+            PlaidTransport { _, _ ->
+                called = true
+                error("production must not be called")
+            },
+        )
+        assertFalse(production.configured)
+        assertTrue(production.removeItem(ACCESS) is PlaidOutcome.Failed)
+        assertFalse(called)
+
+        val vault = MemoryTokenVault()
+        val store = MemoryLocalStore()
+        assertTrue(vault.put(PlaidBankSource.ACCESS_TOKEN_KEY, ACCESS))
+        val api = PlaidHttpApi(PLAID_SANDBOX_HOST, "client-test", "secret-test", PlaidTransport { url, _ ->
+            assertTrue(url.startsWith(PLAID_SANDBOX_HOST))
+            assertTrue(url.endsWith("/item/remove"))
+            error("sandbox remove failed")
+        })
+        val source = PlaidBankSource(vault, store, api, Executor { it.run() }) { it() }
+        source.onDisconnected()
+        vault.clear()
+        assertNull(vault.read(PlaidBankSource.ACCESS_TOKEN_KEY))
+    }
+
+    @Test
+    fun unpaidTrialDoesNotOpenPlaidLink() {
+        val store = MemoryLocalStore()
+        val vault = MemoryTokenVault()
+        val calls = mutableListOf<String>()
+        val api = PlaidHttpApi(PLAID_SANDBOX_HOST, "client-test", "secret-test", PlaidTransport { url, _ ->
+            calls += url
+            error("link must not open")
+        })
+        val direct = Executor { it.run() }
+        val source = PlaidBankSource(vault, store, api, direct) { it() }
+        val now = 1_700_000_000_000L
+        val app = AiCfoController(
+            vault,
+            store,
+            object : AppClock {
+                override fun nowEpochMs(): Long = now + 31L * 24L * 60L * 60L * 1000L
+            },
+            Markets.unitedStates(),
+            EmptyLocalStrings,
+            true,
+            MemorySecureStore(),
+            source,
+        )
+        store.write("onboarding_complete", "true")
+        store.write("trial_started_at", now.toString())
+        val linker = PlaidLinker(vault, store, api, source, app, direct) { it() }
+        linker.opener = { error("Link UI must not open") }
+        linker.connect(advanceIntro = false)
+        assertTrue(calls.isEmpty())
+        assertFalse(app.plaidConnectionAllowed())
+        assertEquals(
+            "Your Pro trial has ended. Subscribe to connect a bank.",
+            app.accounts().linkError,
+        )
+        assertNull(vault.read(PlaidBankSource.ACCESS_TOKEN_KEY))
     }
 
     @Test

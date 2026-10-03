@@ -94,6 +94,16 @@ internal class PlaidHttpApi(
         )
     }
 
+    override fun removeItem(accessToken: String): PlaidOutcome<Unit> {
+        if (!configured) return PlaidOutcome.Failed("Plaid is not configured")
+        if (accessToken.isBlank()) return PlaidOutcome.Failed("Couldn't disconnect")
+        when (val response = postJson("/item/remove", PlaidRequests.removeItem(clientId, secret, accessToken))) {
+            is PlaidOutcome.Ok -> return PlaidOutcome.Ok(Unit)
+            PlaidOutcome.LoginRequired -> return PlaidOutcome.LoginRequired
+            is PlaidOutcome.Failed -> return PlaidOutcome.Failed(response.message)
+        }
+    }
+
     private fun postJson(path: String, body: JSONObject): PlaidOutcome<JSONObject> {
         if (!host.startsWith("https://")) return PlaidOutcome.Failed("Couldn't reach Plaid.")
         val result = try {

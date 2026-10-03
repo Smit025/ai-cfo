@@ -33,6 +33,9 @@ internal interface PlaidApi {
     fun exchangePublicToken(publicToken: String): PlaidOutcome<String>
 
     fun sync(accessToken: String, cursor: String?): PlaidOutcome<PlaidSnapshot>
+
+    /** Sandbox `/item/remove`. Stops the item from staying open after we drop the token. */
+    fun removeItem(accessToken: String): PlaidOutcome<Unit>
 }
 
 internal fun interface PlaidTransport {

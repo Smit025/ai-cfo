@@ -34,7 +34,22 @@ internal class PlaidBankSource(
     }
 
     override fun onDisconnected() {
+        val token = try {
+            vault.read(ACCESS_TOKEN_KEY)
+        } catch (_: Throwable) {
+            null
+        }
         store.remove(CURSOR)
+        if (token.isNullOrBlank() || !api.configured) return
+        // The controller clears the vault as soon as this returns. The token string
+        // is already captured, so the sandbox remove can finish after that clear.
+        io.execute {
+            try {
+                api.removeItem(token)
+            } catch (_: Throwable) {
+                // Local unlink still stands. Do not log the token.
+            }
+        }
     }
 
     fun onRelinked() {

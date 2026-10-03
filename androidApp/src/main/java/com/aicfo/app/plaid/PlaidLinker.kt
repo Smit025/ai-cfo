@@ -27,6 +27,7 @@ internal class PlaidLinker(
     var opener: ((String) -> Unit)? = null
 
     fun connect(advanceIntro: Boolean) {
+        if (!controller.preparePlaidLink()) return
         if (!api.configured) {
             controller.reportLinkError("Plaid is not configured")
             return
@@ -35,6 +36,7 @@ internal class PlaidLinker(
     }
 
     fun onSyncAction(code: String) {
+        if (!controller.preparePlaidLink()) return
         when (code) {
             SyncCode.NEEDS_REAUTH -> {
                 if (controller.activeBankLinkId() == BankLinkId.PLAID && api.configured) {
@@ -141,7 +143,10 @@ internal class PlaidLinker(
             return
         }
         source.onRelinked()
-        controller.completeExternalReadOnlyLink(advanceIntro)
+        if (!controller.completeExternalReadOnlyLink(advanceIntro)) {
+            // Unpaid rejection already cleared the vault, including this token.
+            return
+        }
     }
 
     private fun readAccessToken(): String? = try {

@@ -191,14 +191,17 @@ class AiCfoController(
         observers -= observer
     }
 
-    fun gate(): String = AppGate.resolve(
-        hasSession = hasSession(),
-        introComplete = introComplete(),
-        authSetupComplete = authSetupComplete(),
-        onboardingComplete = onboardingComplete(),
-        deviceUnlockNeeded = deviceUnlockNeeded(),
-        entitled = entitlement().phase != Phase.PAYWALL,
-    )
+    fun gate(): String {
+        releaseUnpaidPlaidLink()
+        return AppGate.resolve(
+            hasSession = hasSession(),
+            introComplete = introComplete(),
+            authSetupComplete = authSetupComplete(),
+            onboardingComplete = onboardingComplete(),
+            deviceUnlockNeeded = deviceUnlockNeeded(),
+            entitled = entitlement().phase != Phase.PAYWALL,
+        )
+    }
 
     fun hasSession(): Boolean = readSession() != null
 
@@ -346,11 +349,37 @@ class AiCfoController(
      * Does not link the Maya sample and does not move money.
      */
     fun requestReadOnlyLink() {
+        if (!preparePlaidLink()) return
         if (!linkConfigured) {
             reportLinkError(linkUnavailableLabel)
             return
         }
         reportLinkError("Couldn't open Plaid Link.")
+    }
+
+    /**
+     * A Plaid item may stay during the 30-day Pro trial, or while [subscribed_plan]
+     * is MONTHLY or YEARLY. That plan flag is a simulated subscription. Play billing
+     * is not wired, so a finished trial with no subscription is unpaid.
+     * Onboarding may still link before the trial starts. After onboarding, a paywall
+     * phase is unpaid and the link has to come off.
+     */
+    fun plaidConnectionAllowed(): Boolean {
+        val phase = entitlement().phase
+        if (phase == Phase.TRIAL || phase == Phase.PRO) return true
+        if (!onboardingComplete()) return true
+        return false
+    }
+
+    /**
+     * Call before opening Plaid Link or saving an access token.
+     * Returns false when the user is unpaid, and sets [linkError].
+     */
+    fun preparePlaidLink(): Boolean {
+        releaseUnpaidPlaidLink()
+        if (plaidConnectionAllowed()) return true
+        reportLinkError(unpaidLinkMessage())
+        return false
     }
 
     /**
@@ -417,6 +446,11 @@ class AiCfoController(
             reportLinkError("Bank link refused: read-only connections only")
             return false
         }
+        if (!preparePlaidLink()) {
+            // The platform may already have stored an access token. Drop it.
+            disconnectAll()
+            return false
+        }
         store.write(Keys.LINK_KIND, banks.id)
         store.write(Keys.BANKS, "true")
         store.write(Keys.NEEDS_REAUTH, "false")
@@ -453,6 +487,7 @@ class AiCfoController(
      */
     fun refreshAccounts(reason: SyncTrigger) {
         lastTrigger = reason
+        releaseUnpaidPlaidLink()
         if (!banksLinked()) {
             if (syncStatus !is SyncStatus.Idle || lastSyncedAt != null || syncedAccounts.isNotEmpty()) {
                 clearSync()
@@ -541,14 +576,17 @@ class AiCfoController(
         return connectReadOnlyStub()
     }
 
-    fun home(): HomeModel = HomeUseCase.build(
+    fun home(): HomeModel {
+        releaseUnpaidPlaidLink()
+        return HomeUseCase.build(
         resolved(),
         notificationsEnabled(),
         market,
         copy,
         syncLine(),
-        bankFigures(),
-    )
+            bankFigures(),
+        )
+    }
 
     fun moves(): MovesModel = MovesUseCase.build(resolved(), market, copy)
 
@@ -557,7 +595,9 @@ class AiCfoController(
         return DetailUseCase.build(row)
     }
 
-    fun accounts(): AccountsModel = AccountsUseCase.build(
+    fun accounts(): AccountsModel {
+        releaseUnpaidPlaidLink()
+        return AccountsUseCase.build(
         linked = banksLinked(),
         copy = copy,
         linkError = linkError,
@@ -567,8 +607,9 @@ class AiCfoController(
         unavailableLabel = linkUnavailableLabel,
         linkNote = linkNote,
         sampleLink = banksLinked() && activeSource().id == MayaStubBankSource.ID,
-        sampleCta = if (Qa.toolsEnabled(debugBuild) && !banksLinked()) "Link read-only sample" else "",
-    )
+            sampleCta = if (Qa.toolsEnabled(debugBuild) && !banksLinked()) "Link read-only sample" else "",
+        )
+    }
 
     fun settings(): SettingsModel {
         val ent = entitlement()
@@ -1110,6 +1151,27 @@ class AiCfoController(
             return mayaSample
         }
         return banks
+    }
+
+    /**
+     * Trial ended, or onboarding finished with no trial and no simulated subscription.
+     * Drops the Plaid item so a non-paying user does not keep a live link.
+     * The Maya sample is not a Plaid item and stays.
+     */
+    private fun releaseUnpaidPlaidLink() {
+        if (plaidConnectionAllowed()) return
+        val plaidHeld = store.read(Keys.LINK_KIND) == BankLinkId.PLAID || store.read(Keys.REAL_SYNC) == "true"
+        if (!plaidHeld) return
+        disconnectAll()
+    }
+
+    private fun unpaidLinkMessage(): String {
+        val ended = entitlement().trialConsumed
+        return if (ended) {
+            "Your Pro trial has ended. Subscribe to connect a bank."
+        } else {
+            "Subscribe to connect a bank."
+        }
     }
 
     /** Only a successful fetch from the Plaid source unlocks Home figures. */
