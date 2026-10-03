@@ -1,11 +1,9 @@
 package com.aicfo.shared
 
+import com.aicfo.shared.auth.LoginHttpResult
 import com.aicfo.shared.auth.LoginMail
-import com.aicfo.shared.auth.MailConfig
-import com.aicfo.shared.auth.ResendApi
-import com.aicfo.shared.auth.ResendEmailAuthRepository
-import com.aicfo.shared.auth.ResendHttpResult
-import com.aicfo.shared.auth.ResendTransport
+import com.aicfo.shared.auth.LoginServerEmailAuthRepository
+import com.aicfo.shared.auth.LoginServerTransport
 import com.aicfo.shared.auth.StubEmailAuthRepository
 import com.aicfo.shared.auth.UnconfiguredEmailAuthRepository
 import com.aicfo.shared.domain.AiCfoController
@@ -17,7 +15,6 @@ import com.aicfo.shared.presentation.Gate
 import com.aicfo.shared.security.MemoryLocalStore
 import com.aicfo.shared.security.MemorySecureStore
 import com.aicfo.shared.security.MemoryTokenVault
-import com.aicfo.shared.security.SafeLog
 import com.aicfo.shared.security.TlsPolicy
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -27,14 +24,9 @@ import kotlin.test.assertTrue
 
 class ResendLoginTest {
     @Test
-    fun releaseWithoutAKeyFailsClosedAndRefusesTheDebugCode() {
+    fun releaseWithoutAServerFailsClosedAndRefusesTheDebugCode() {
         val transport = RecordingTransport()
-        val mail = LoginMail.repository(
-            debugBuild = false,
-            apiKey = "",
-            fromAddress = "login@example.com",
-            transport = transport,
-        )
+        val mail = LoginMail.repository(debugBuild = false, serverUrl = "", transport = transport)
         assertTrue(mail is UnconfiguredEmailAuthRepository)
         val app = releaseApp(mail)
         repeat(3) { app.primaryOnboarding() }
@@ -51,17 +43,15 @@ class ResendLoginTest {
     }
 
     @Test
-    fun releaseResendSendsTheCodeAndRefuses000000() {
-        val transport = RecordingTransport()
+    fun releaseAsksTheServerToSendAndRefuses000000() {
+        val transport = RecordingTransport(verifyCode = "482913")
         val mail = LoginMail.repository(
             debugBuild = false,
-            apiKey = "test-key",
-            fromAddress = "Finwise <login@example.com>",
+            serverUrl = "https://login.example",
             transport = transport,
         )
-        assertTrue(mail is ResendEmailAuthRepository)
-        assertEquals("https://api.resend.com/emails", ResendApi.ENDPOINT)
-        TlsPolicy.requireHttps(ResendApi.ENDPOINT)
+        assertTrue(mail is LoginServerEmailAuthRepository)
+        TlsPolicy.requireHttps("https://login.example/login/code")
         val app = releaseApp(mail)
         repeat(3) { app.primaryOnboarding() }
         assertTrue(app.emailSignInConfigured())
@@ -69,61 +59,51 @@ class ResendLoginTest {
         assertTrue(app.submitEmail("Maya@Gmail.com"))
         assertFalse(app.hasSession())
         assertEquals(AuthStep.CODE, app.authStep())
-        assertEquals(1, transport.calls.size)
-        val call = transport.calls.single()
-        assertEquals("test-key", call.apiKey)
-        assertTrue(call.jsonBody.contains("maya@gmail.com"))
-        assertTrue(call.jsonBody.contains("Finwise <login@example.com>"))
-        val code = Regex("""\b(\d{6})\b""").find(call.jsonBody)?.groupValues?.get(1)
-        assertTrue(code != null && code != StubEmailAuthRepository.DEBUG_CODE)
+        val send = transport.calls.single()
+        assertEquals("https://login.example/login/code", send.url)
+        assertTrue(send.body.contains("maya@gmail.com"))
+        assertFalse(send.body.contains("000000"))
         assertFalse(app.verifySignInCode(StubEmailAuthRepository.DEBUG_CODE))
         assertFalse(app.hasSession())
-        assertTrue(app.verifySignInCode(code!!))
+        assertEquals(1, transport.calls.size)
+        assertTrue(app.verifySignInCode("482913"))
         assertTrue(app.hasSession())
         assertEquals("maya@gmail.com", app.sessionEmail())
+        assertTrue(transport.calls.last().url.endsWith("/login/verify"))
+        assertFalse(transport.calls.any { it.body.contains("api_key") || it.body.contains("Bearer") })
     }
 
     @Test
-    fun releaseStillRefuses000000WhenThatIsWhatWouldHaveBeenSent() {
-        val transport = RecordingTransport()
-        val mail = ResendEmailAuthRepository(
-            apiKey = "test-key",
-            fromAddress = "login@example.com",
-            transport = transport,
-            newCode = { StubEmailAuthRepository.DEBUG_CODE },
-        )
+    fun releaseRefuses000000EvenIfTheServerWouldAcceptIt() {
+        val transport = RecordingTransport(verifyCode = StubEmailAuthRepository.DEBUG_CODE)
+        val mail = LoginMail.repository(false, "https://login.example", transport)
         val app = releaseApp(mail)
         repeat(3) { app.primaryOnboarding() }
-        assertTrue(app.submitEmail("maya@outlook.com"))
+        assertTrue(app.submitEmail("maya@gmail.com"))
         assertFalse(app.hasSession())
-        assertFalse(callBodyContainsDebugCode(transport))
         assertFalse(app.verifySignInCode(StubEmailAuthRepository.DEBUG_CODE))
         assertFalse(app.hasSession())
+        assertEquals(1, transport.calls.size)
     }
 
     @Test
-    fun aFailedResendPostDoesNotStartASession() {
-        val transport = RecordingTransport(status = 500)
-        val mail = LoginMail.repository(false, "test-key", "login@example.com", transport)
+    fun aFailedServerPostDoesNotStartASession() {
+        val transport = RecordingTransport(status = 503)
+        val mail = LoginMail.repository(false, "https://login.example", transport)
         val app = releaseApp(mail)
         repeat(3) { app.primaryOnboarding() }
         assertFalse(app.submitEmail("maya@gmail.com"))
         assertFalse(app.hasSession())
         assertEquals(Gate.AUTH, app.gate())
         assertEquals(AuthStep.EMAIL, app.authStep())
-        assertFalse(app.verifySignInCode("123456"))
+        assertFalse(app.verifySignInCode("482913"))
         assertFalse(app.hasSession())
     }
 
     @Test
-    fun debugIgnoresAConfiguredKeyAndDoesNotSend() {
+    fun debugIgnoresAServerUrlAndDoesNotSend() {
         val transport = RecordingTransport()
-        val mail = LoginMail.repository(
-            debugBuild = true,
-            apiKey = "test-key",
-            fromAddress = "login@example.com",
-            transport = transport,
-        )
+        val mail = LoginMail.repository(true, "https://login.example", transport)
         assertTrue(mail is StubEmailAuthRepository)
         val app = AiCfoController(
             MemoryTokenVault(),
@@ -145,7 +125,7 @@ class ResendLoginTest {
     }
 
     @Test
-    fun debugBuildRejectsTheResendSender() {
+    fun debugBuildRejectsTheLoginServerClient() {
         val error = assertFailsWith<IllegalArgumentException> {
             AiCfoController(
                 MemoryTokenVault(),
@@ -155,38 +135,10 @@ class ResendLoginTest {
                 EmptyLocalStrings,
                 true,
                 MemorySecureStore(),
-                ResendEmailAuthRepository("test-key", "login@example.com", RecordingTransport()),
+                LoginServerEmailAuthRepository("https://login.example", RecordingTransport()),
             )
         }
         assertTrue(error.message!!.contains("must not send mail"))
-    }
-
-    @Test
-    fun mailConfigReadsTheEnvironmentBeforeTheGitignoredFile() {
-        val file = """
-            # Do not commit a real key.
-            FINWISE_RESEND_API_KEY=
-            FINWISE_RESEND_API_KEY=file-key
-            FINWISE_RESEND_FROM=login@example.com
-        """.trimIndent()
-        assertEquals("" to "", MailConfig.resolve({ null }, null))
-        assertEquals("" to "", MailConfig.resolve({ null }, "# FINWISE_RESEND_API_KEY=\n"))
-        val fromFile = MailConfig.resolve({ null }, file)
-        assertEquals("file-key", fromFile.first)
-        assertEquals("login@example.com", fromFile.second)
-        val fromEnv = MailConfig.resolve(
-            { name -> if (name == MailConfig.API_KEY) "env-key" else null },
-            file,
-        )
-        assertEquals("env-key", fromEnv.first)
-        assertEquals("login@example.com", fromEnv.second)
-        val cleaned = SafeLog.redact("Authorization: Bearer test-key FINWISE_RESEND_API_KEY=file-key")
-        assertFalse(cleaned.contains("test-key"))
-        assertFalse(cleaned.contains("file-key"))
-    }
-
-    private fun callBodyContainsDebugCode(transport: RecordingTransport): Boolean {
-        return transport.calls.any { it.jsonBody.contains(StubEmailAuthRepository.DEBUG_CODE) }
     }
 
     private fun releaseApp(mail: com.aicfo.shared.auth.EmailAuthRepository) = AiCfoController(
@@ -204,14 +156,20 @@ class ResendLoginTest {
         override fun nowEpochMs(): Long = 10L
     }
 
-    private class RecordingTransport(private val status: Int = 200) : ResendTransport {
+    private class RecordingTransport(
+        private val status: Int = 200,
+        private val verifyCode: String = "482913",
+    ) : LoginServerTransport {
         val calls = mutableListOf<Call>()
 
-        override fun postEmail(apiKey: String, jsonBody: String): ResendHttpResult {
-            calls += Call(apiKey, jsonBody)
-            return ResendHttpResult(status, if (status in 200..299) "" else "Couldn't send the code.")
+        override fun post(url: String, jsonBody: String): LoginHttpResult {
+            calls += Call(url, jsonBody)
+            if (url.endsWith("/login/verify") && !jsonBody.contains(verifyCode)) {
+                return LoginHttpResult(400, "That code is wrong or expired.")
+            }
+            return LoginHttpResult(status, if (status in 200..299) "" else "Couldn't send the code.")
         }
     }
 
-    private data class Call(val apiKey: String, val jsonBody: String)
+    private data class Call(val url: String, val body: String)
 }

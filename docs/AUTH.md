@@ -68,16 +68,17 @@ Debug builds do not lock when the user has not chosen biometrics and has not set
 
 ## Email sender
 
+The phone does not hold a mail key. Release builds ask the login server (`login-server/`) to send the 6-digit code and to check it. That server is the only process that calls Resend.
+
 `EmailAuthRepository`:
 
-- `StubEmailAuthRepository` — debug builds, including when a Resend key is present. A request succeeds for a valid address and does not send mail. Verify accepts `000000` only after that request. Magic links are not issued. More than five sends in one process returns a rate-limit error.
-- `ResendEmailAuthRepository` — release builds when `FINWISE_RESEND_API_KEY` and `FINWISE_RESEND_FROM` are set outside git. `requestChallenge` generates a 6-digit code, POSTs it to `https://api.resend.com/emails`, and does not create a session. Verify accepts that code only. `000000` is refused. A failed POST does not start a session.
-- `UnconfiguredEmailAuthRepository` — release builds with no key or no from address. It never accepts a code or a link, including `000000`. The email button is disabled and the screen says sign-in is not configured.
-- Tests pass a fake transport. The fake is not the app, and it does not contain a real key.
+- `StubEmailAuthRepository` — debug builds. A request succeeds for a valid address and does not send mail. Verify accepts `000000` only after that request. Magic links are not issued.
+- `LoginServerEmailAuthRepository` — release builds when `FINWISE_LOGIN_SERVER_URL` is set in the phone's process environment. The value must be `https://…`. `requestChallenge` POSTs the address to `/login/code` and does not create a session. `verifyCode` POSTs the address and the code to `/login/verify`. `000000` is refused before the request. A failed response does not start a session.
+- `UnconfiguredEmailAuthRepository` — release builds with no server URL. It never accepts a code or a link, including `000000`. The email button is disabled and the screen says sign-in is not configured.
 
-The release app reads the key from the process environment first (`FINWISE_RESEND_API_KEY`), then from gitignored `email.local.properties` when that file is readable, then from the copy Gradle made of those same places while building the release APK. Debug builds do not copy the key into the APK and do not read it. `email.local.properties.example` lists the variable names only.
+The server reads `FINWISE_RESEND_API_KEY` and `FINWISE_RESEND_FROM` from its environment, then from gitignored `email.local.properties`. Gradle does not copy those into the Android or iOS app. `email.local.properties.example` lists the names only.
 
-No API key, client secret, or OAuth file is in git. A magic link is still enough in the shared verifier for a fake sender. This Resend path sends the code only. Nothing in this repo sends the monthly savings report or registers an app link. iOS was not compiled and does not send mail.
+No API key is in git. This server sends the login code only. Nothing in this repo sends the monthly savings report. iOS was not compiled and does not send mail.
 
 ## Settings
 

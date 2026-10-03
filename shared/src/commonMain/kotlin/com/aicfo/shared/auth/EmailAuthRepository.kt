@@ -8,9 +8,9 @@ package com.aicfo.shared.auth
  * never creates a session, and this type does not send the monthly savings report.
  *
  * Debug builds use [StubEmailAuthRepository] and do not send mail.
- * Release builds use [ResendEmailAuthRepository] when [MailConfig.API_KEY] and
- * [MailConfig.FROM] are set outside git, and [UnconfiguredEmailAuthRepository] otherwise.
- * See `docs/AUTH.md` and `email.local.properties.example`.
+ * Release builds use [LoginServerEmailAuthRepository] when a login-server URL is
+ * set outside the app binary, and [UnconfiguredEmailAuthRepository] otherwise.
+ * The Resend key stays on that server. See `docs/AUTH.md`.
  */
 interface EmailAuthRepository {
     /** False when this build cannot send a code or a link. */

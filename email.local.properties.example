@@ -1,8 +1,12 @@
-# Copy to email.local.properties (gitignored). Do not commit a real key.
-#
-# Release reads these names from the process environment, then from
-# email.local.properties. Debug builds ignore them and do not send mail.
-# Leave a name blank and a release build fails closed.
+# The login server reads these names from the environment, then from
+# email.local.properties (gitignored). The Android and iOS apps do not.
+# Copy this file aside and fill the values there. Do not commit them.
 #
 # FINWISE_RESEND_API_KEY=
 # FINWISE_RESEND_FROM=
+#
+# The phone reads FINWISE_LOGIN_SERVER_URL from its own process environment.
+# That is the https address of this server, not a mail secret.
+# Leave it unset and a release build fails closed.
+#
+# FINWISE_LOGIN_SERVER_URL=
