@@ -4,7 +4,7 @@ The current login is an email plus a one-time code or magic link ([docs/AUTH.md]
 
 ## Device screenshots (Galaxy S23 FE)
 
-These three PNGs are the email login on a real phone. Galaxy S23 FE, Android 16, Sauce Labs session [e862d7ed-6c66-4ea1-b3fa-3aab6098d8e1](https://app.saucelabs.com/tests/e862d7ed-6c66-4ea1-b3fa-3aab6098d8e1). The installed app is commit `0ae985b01f401c38ca1457c1bac583575e74e6ed`. They are device screenshots, not Compose captures. iOS was not compiled.
+These three PNGs are the full-resolution stills (1080×2340) of the email login on a real phone. Galaxy S23 FE, Android 16, Sauce Labs session [e862d7ed-6c66-4ea1-b3fa-3aab6098d8e1](https://app.saucelabs.com/tests/e862d7ed-6c66-4ea1-b3fa-3aab6098d8e1). The installed app is commit `0ae985b01f401c38ca1457c1bac583575e74e6ed`. They are device screenshots, not Compose captures, and they replace the earlier frames taken from the session recording. iOS was not compiled.
 
 | # | Screen | File |
 | --- | --- | --- |
