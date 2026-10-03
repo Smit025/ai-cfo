@@ -2,11 +2,11 @@
 
 iOS was not compiled.
 
-## Empty Home — device frame
+## Empty Home — device screenshot
 
-`home-before-plaid-sync.png` is a **device frame**, not a Compose capture.
+`home-before-plaid-sync.png` is a **device screenshot**, not a Compose capture and not a video frame.
 
-It is from a Galaxy S23 FE on Android 16, Sauce session [12516cda-cff6-4f47-949f-7c9f7f4af563](https://app.saucelabs.com/tests/12516cda-cff6-4f47-949f-7c9f7f4af563), keyed debug APK of `5bd9dc20d019794684b0d2a1ac92447ab646eec0`. The frame is from the scrcpy recording of that session while Home was on screen, before Connect securely (536×1168). The separate full-resolution still was not on disk in this environment.
+It is the full-resolution still (1080×2340) from a Galaxy S23 FE on Android 16, Sauce session [12516cda-cff6-4f47-949f-7c9f7f4af563](https://app.saucelabs.com/tests/12516cda-cff6-4f47-949f-7c9f7f4af563), keyed debug APK of `5bd9dc20d019794684b0d2a1ac92447ab646eec0`.
 
 The screen shows **Hello, Maya**, dashes for savings, net worth, needs, wants, and to save, and **Balances show after a bank sync**. Ranked move cards are still there.
 

@@ -45,7 +45,7 @@ Release builds ignore both simulate actions and **Link read-only sample**. They 
 
 Prefs keys: `last_synced_at`, `sync_state`, `sync_error`, `sync_needs_reauth`, `synced_accounts`, `synced_transactions`.
 
-Home keeps the same layout: savings, net worth, needs / wants / to save, and the ranked move cards. Dollar figures on that strip stay “—” until one successful sync from the Plaid source (`bank_link_kind` = `plaid`, `real_bank_sync` = true). A later failed or stale sync keeps those last figures and marks them not current. Cold start does not invent balances. The Maya sample never sets `real_bank_sync`. Ranked move cards stay the October coach plan. The three Home boards are in `docs/plaid-review`. The empty board is a Galaxy S23 FE frame from Sauce session `12516cda-cff6-4f47-949f-7c9f7f4af563`. The synced and stale boards are Compose captures; those device states were not reached.
+Home keeps the same layout: savings, net worth, needs / wants / to save, and the ranked move cards. Dollar figures on that strip stay “—” until one successful sync from the Plaid source (`bank_link_kind` = `plaid`, `real_bank_sync` = true). A later failed or stale sync keeps those last figures and marks them not current. Cold start does not invent balances. The Maya sample never sets `real_bank_sync`. Ranked move cards stay the October coach plan. The three Home boards are in `docs/plaid-review`. The empty board is a Galaxy S23 FE device screenshot from Sauce session `12516cda-cff6-4f47-949f-7c9f7f4af563`. The synced and stale boards are Compose captures; those device states were not reached.
 
 ## Plaid sandbox
 

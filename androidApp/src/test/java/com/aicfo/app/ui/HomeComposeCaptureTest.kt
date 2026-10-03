@@ -53,7 +53,7 @@ import java.io.FileOutputStream
 
 /**
  * Compose fallback for the synced and stale Home boards.
- * The empty Home file is a device frame and is not written here.
+ * The empty Home file is a device screenshot and is not written here.
  * Runs only when HOME_CAPTURE_DIR is set, so the normal unit-test job does not write files.
  * These draws are not device screenshots.
  */
@@ -72,7 +72,7 @@ class HomeComposeCaptureTest {
         assertEquals("—", empty.home().netWorthAmount)
         assertEquals("gympass", empty.home().moveAt(0).id)
         assertFalse(empty.home().freshnessLabel.contains("Updated"))
-        // home-before-plaid-sync.png is the Galaxy device frame. Do not overwrite it.
+        // home-before-plaid-sync.png is the Galaxy device screenshot. Do not overwrite it.
 
         val now = 1_760_544_000_000L
         val source = CapturePlaidSource(sampleFetch(now))
