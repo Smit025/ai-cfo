@@ -24,10 +24,24 @@ The Maya stub is still the data. The sync hooks around it are real.
 | `refreshAccounts(PullToRefresh)` | Pull down on Home or Accounts |
 | `refreshAccounts(Manual)` | Connect, **Try again**, and the reconnect path |
 | `reconnectBank()` | Clears the re-auth flag and refreshes. Does not move money. |
-| `debugSimulateNeedsReauth()` | Debug QA only (Settings → **Simulate bank reconnect**). Release builds ignore it. |
-| `debugSimulateSyncFailure()` | Debug QA only (Settings → **Simulate sync failure**). Release builds ignore it. |
+| `debugSimulateNeedsReauth()` | Debug QA only (Settings → **Simulate bank reconnect**, testTag `qa_simulate_reconnect`). If nothing is linked yet, this links the read-only sample first, then marks NeedsReauth. Release builds ignore it and do not link. |
+| `debugSimulateSyncFailure()` | Debug QA only (Settings → **Simulate sync failure**, testTag `qa_simulate_failure`). Same link-if-needed behavior, then Failed. Release builds ignore it and do not link. |
 
 `SyncStatus` is `Idle`, `Syncing`, `Success(lastSyncedAt)`, `Failed(reason)`, or `NeedsReauth`. Home and Accounts read `freshnessLabel`, `syncCode`, `syncActionLabel`, and `syncStale` from the shared models. They do not format the relative time themselves.
+
+The freshness line uses testTag `bank_freshness`. When there is an action, **Try again** or **Reconnect** uses testTag `bank_freshness_action`.
+
+## QA order
+
+An unlinked Accounts screen stays on “Nothing linked” and **Link read-only sample**. Cold start does not auto-link, in debug or release. Freshness, Reconnect, and Try again render only after the sample is linked. Assert them in this order:
+
+1. Finish onboarding. **Skip for now** leaves Accounts unlinked. That empty state is expected until the next step.
+2. Link the sample, either by tapping **Link read-only sample** on Accounts, or by using a debug simulate action. Simulate links the stub itself, then overlays a stale state. You do not need a prior tap on Link.
+3. After a real link, Home’s wealth strip and Accounts show `bank_freshness` with a relative line such as “Updated just now”.
+4. Settings → **Simulate bank reconnect** (`qa_simulate_reconnect`) shows NeedsReauth: “Reconnect to refresh balances” and a tappable **Reconnect** (`bank_freshness_action`) on Home and Accounts. Reconnect clears the flag and refreshes.
+5. Settings → **Simulate sync failure** (`qa_simulate_failure`) shows Failed and **Try again** (`bank_freshness_action`) the same way. The line does not stay “Updated …” or the empty unlinked copy. Try again refreshes.
+
+Release builds ignore both simulate actions. They do not link and they do not change a successful sync.
 
 Prefs keys: `last_synced_at`, `sync_state`, `sync_error`, `sync_needs_reauth`, `synced_accounts`, `synced_transactions`.
 

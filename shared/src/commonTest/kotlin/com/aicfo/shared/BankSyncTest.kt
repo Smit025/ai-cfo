@@ -252,6 +252,100 @@ class BankSyncTest {
     }
 
     @Test
+    fun coldStartDoesNotAutoLinkTheSample() {
+        val app = linkedApp(ManualClock(10L), linked = false)
+        app.refreshAccounts(SyncTrigger.ColdStart)
+        app.refreshAccounts(SyncTrigger.Foreground)
+        assertFalse(app.accounts().linked)
+        assertEquals("Nothing linked · Maya Chen", app.accounts().subtitle)
+        assertEquals("", app.home().freshnessLabel)
+        assertEquals("", app.accounts().freshnessLabel)
+        assertTrue(app.syncStatus() is SyncStatus.Idle)
+    }
+
+    @Test
+    fun simulateReconnectWithoutAPriorLinkShowsReconnect() {
+        val store = MemoryLocalStore()
+        val app = linkedApp(ManualClock(10L), store, linked = false)
+        assertFalse(app.accounts().linked)
+        app.debugSimulateNeedsReauth()
+        assertTrue(app.accounts().linked)
+        assertEquals("true", store.read("banks_linked"))
+        assertTrue(app.syncStatus() is SyncStatus.NeedsReauth)
+        assertTrue(app.home().syncStale)
+        assertTrue(app.accounts().syncStale)
+        assertEquals("Reconnect", app.home().syncActionLabel)
+        assertEquals("Reconnect", app.accounts().syncActionLabel)
+        assertEquals(
+            "Reconnect to refresh balances. Last update just now.",
+            app.home().freshnessLabel,
+        )
+        assertEquals(app.home().freshnessLabel, app.accounts().freshnessLabel)
+        assertFalse(app.home().freshnessLabel.startsWith("Updated"))
+        assertEquals("Connected read-only · Maya Chen", app.accounts().subtitle)
+
+        app.reconnectBank()
+        assertTrue(app.syncStatus() is SyncStatus.Success)
+        assertEquals("Updated just now", app.home().freshnessLabel)
+        assertEquals("Updated just now", app.accounts().freshnessLabel)
+        assertEquals("", app.accounts().syncActionLabel)
+        assertFalse(app.accounts().syncStale)
+        assertEquals("false", store.read("sync_needs_reauth"))
+    }
+
+    @Test
+    fun simulateFailureWithoutAPriorLinkShowsTryAgain() {
+        val app = linkedApp(ManualClock(10L), linked = false)
+        assertFalse(app.accounts().linked)
+        app.debugSimulateSyncFailure()
+        assertTrue(app.accounts().linked)
+        val status = app.syncStatus()
+        assertTrue(status is SyncStatus.Failed)
+        assertEquals("Couldn't refresh", status.reason)
+        assertEquals("Try again", app.home().syncActionLabel)
+        assertEquals("Try again", app.accounts().syncActionLabel)
+        assertTrue(app.home().syncStale)
+        assertEquals(
+            "Couldn't refresh. Last update just now.",
+            app.accounts().freshnessLabel,
+        )
+        assertEquals(app.accounts().freshnessLabel, app.home().freshnessLabel)
+        assertFalse(app.home().freshnessLabel.startsWith("Updated"))
+        assertFalse(app.accounts().subtitle.startsWith("Nothing linked"))
+
+        app.refreshAccounts(SyncTrigger.Manual)
+        assertTrue(app.syncStatus() is SyncStatus.Success)
+        assertEquals("Updated just now", app.home().freshnessLabel)
+        assertEquals("Updated just now", app.accounts().freshnessLabel)
+        assertEquals("", app.home().syncActionLabel)
+    }
+
+    @Test
+    fun releaseBuildIgnoresSimulateWhenNothingIsLinked() {
+        val store = MemoryLocalStore()
+        val app = AiCfoController(
+            MemoryTokenVault(),
+            store,
+            ManualClock(10L),
+            Markets.unitedStates(),
+            EmptyLocalStrings,
+            false,
+            MemorySecureStore(),
+        )
+        assertFalse(app.accounts().linked)
+        app.debugSimulateNeedsReauth()
+        app.debugSimulateSyncFailure()
+        assertFalse(app.accounts().linked)
+        assertTrue(app.syncStatus() is SyncStatus.Idle)
+        assertEquals("", app.home().freshnessLabel)
+        assertEquals("", app.accounts().freshnessLabel)
+        assertEquals("Nothing linked · Maya Chen", app.accounts().subtitle)
+        assertNull(store.read("banks_linked"))
+        assertNull(store.read("sync_needs_reauth"))
+        assertNull(store.read("sync_state"))
+    }
+
+    @Test
     fun releaseBuildIgnoresTheReconnectQaHook() {
         val store = MemoryLocalStore()
         val app = AiCfoController(

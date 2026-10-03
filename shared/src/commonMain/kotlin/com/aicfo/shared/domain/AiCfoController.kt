@@ -414,9 +414,14 @@ class AiCfoController(
         refreshAccounts(SyncTrigger.Manual)
     }
 
-    /** Debug/QA only. Leaves balances visible and marks them as needing reconnect. */
+    /**
+     * Debug/QA only. Leaves balances visible and marks them as needing reconnect.
+     * If the sample is not linked yet, links it first so Home and Accounts can
+     * show the Reconnect line. Release builds ignore this and do not link.
+     */
     fun debugSimulateNeedsReauth() {
         if (!Qa.toolsEnabled(debugBuild)) return
+        if (!ensureDebugSampleLinked()) return
         syncGeneration += 1
         store.write(Keys.NEEDS_REAUTH, "true")
         syncStatus = SyncStatus.NeedsReauth
@@ -424,14 +429,29 @@ class AiCfoController(
         publish()
     }
 
-    /** Debug/QA only. Leaves the last successful timestamp and marks the sync failed. */
+    /**
+     * Debug/QA only. Leaves the last successful timestamp and marks the sync failed.
+     * If the sample is not linked yet, links it first so the failure is not a silent
+     * empty state. Release builds ignore this and do not link.
+     */
     fun debugSimulateSyncFailure() {
         if (!Qa.toolsEnabled(debugBuild)) return
+        if (!ensureDebugSampleLinked()) return
         syncGeneration += 1
         store.write(Keys.NEEDS_REAUTH, "false")
         syncStatus = SyncStatus.Failed("Couldn't refresh")
         persistSync()
         publish()
+    }
+
+    /**
+     * Freshness chrome only renders once institutions are linked. Debug simulate
+     * must not stop at an unlinked empty state: link the read-only sample, then
+     * let the caller overlay NeedsReauth or Failed.
+     */
+    private fun ensureDebugSampleLinked(): Boolean {
+        if (banksLinked()) return true
+        return connectReadOnlyStub()
     }
 
     fun home(): HomeModel = HomeUseCase.build(

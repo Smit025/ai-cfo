@@ -1,5 +1,6 @@
 package com.aicfo.app.ui
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -8,6 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
@@ -31,8 +33,10 @@ import com.aicfo.shared.sync.SyncTrigger
 import com.aicfo.shared.market.EmptyLocalStrings
 import com.aicfo.shared.market.Markets
 import com.aicfo.shared.security.MemoryLocalStore
+import com.aicfo.shared.security.MemorySecureStore
 import com.aicfo.shared.security.MemoryTokenVault
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -156,6 +160,100 @@ class AutomationSemanticsTest {
     }
 
     @Test
+    fun linkReadOnlySampleShowsFreshnessOnAccountsAndHome() {
+        val controller = debugController()
+        assertFalse(controller.accounts().linked)
+        rule.setContent { RevisingAccounts(controller) }
+        rule.onNodeWithText("Nothing linked · Maya Chen").assertIsDisplayed()
+        rule.onNodeWithText("Link read-only sample").performScrollTo().performClick()
+        rule.onNodeWithText("Connected read-only · Maya Chen").assertIsDisplayed()
+        rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS).assertTextEquals("Updated just now")
+        rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS_ACTION).assertDoesNotExist()
+
+        rule.setContent { RevisingHome(controller) }
+        rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS).assertTextEquals("Updated just now")
+        rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS_ACTION).assertDoesNotExist()
+    }
+
+    @Test
+    fun simulateReconnectWithoutAPriorLinkShowsReconnect() {
+        val controller = debugController()
+        assertFalse(controller.accounts().linked)
+        rule.runOnIdle { controller.debugSimulateNeedsReauth() }
+        rule.setContent { RevisingAccounts(controller) }
+        rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS)
+            .assertTextEquals("Reconnect to refresh balances. Last update just now.")
+        rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS_ACTION)
+            .assertTextEquals("Reconnect")
+            .assertHasClickAction()
+
+        rule.setContent { RevisingHome(controller) }
+        rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS)
+            .assertTextEquals("Reconnect to refresh balances. Last update just now.")
+        rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS_ACTION)
+            .assertTextEquals("Reconnect")
+            .performClick()
+        rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS).assertTextEquals("Updated just now")
+        rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS_ACTION).assertDoesNotExist()
+        rule.runOnIdle {
+            assertTrue(controller.syncStatus() is SyncStatus.Success)
+            assertTrue(controller.accounts().linked)
+        }
+    }
+
+    @Test
+    fun simulateFailureWithoutAPriorLinkShowsTryAgain() {
+        val controller = debugController()
+        assertFalse(controller.accounts().linked)
+        rule.runOnIdle { controller.debugSimulateSyncFailure() }
+        rule.setContent { RevisingHome(controller) }
+        rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS)
+            .assertTextEquals("Couldn't refresh. Last update just now.")
+        rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS_ACTION)
+            .assertTextEquals("Try again")
+            .assertHasClickAction()
+
+        rule.setContent { RevisingAccounts(controller) }
+        rule.onNodeWithText("Nothing linked · Maya Chen").assertDoesNotExist()
+        rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS)
+            .assertTextEquals("Couldn't refresh. Last update just now.")
+        rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS_ACTION)
+            .assertTextEquals("Try again")
+            .performClick()
+        rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS).assertTextEquals("Updated just now")
+        rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS_ACTION).assertDoesNotExist()
+        rule.runOnIdle {
+            assertTrue(controller.syncStatus() is SyncStatus.Success)
+        }
+    }
+
+    @Test
+    fun releaseIgnoresSimulateAndKeepsTheUnlinkedEmptyState() {
+        val controller = AiCfoController(
+            vault = MemoryTokenVault(),
+            store = MemoryLocalStore(),
+            clock = object : AppClock {
+                override fun nowEpochMs(): Long = 10L
+            },
+            market = Markets.unitedStates(),
+            localStrings = EmptyLocalStrings,
+            debugBuild = false,
+            secure = MemorySecureStore(),
+        )
+        controller.debugSimulateNeedsReauth()
+        controller.debugSimulateSyncFailure()
+        rule.setContent { AccountsScreen(controller, tick = 0) }
+        rule.onNodeWithText("Nothing linked · Maya Chen").assertIsDisplayed()
+        rule.onNodeWithText("Link read-only sample").assertIsDisplayed()
+        rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS).assertDoesNotExist()
+        rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS_ACTION).assertDoesNotExist()
+        rule.runOnIdle {
+            assertTrue(controller.syncStatus() is SyncStatus.Idle)
+            assertFalse(controller.accounts().linked)
+        }
+    }
+
+    @Test
     fun paywallCtasDismissTheHardPaywall() {
         val controller = debugController()
         reachMain(controller)
@@ -273,4 +371,34 @@ class AutomationSemanticsTest {
         localStrings = EmptyLocalStrings,
         debugBuild = true,
     )
+}
+
+@Composable
+private fun RevisingAccounts(controller: AiCfoController) {
+    var tick by remember { mutableIntStateOf(0) }
+    DisposableEffect(controller) {
+        val observer = object : AppObserver {
+            override fun onChanged() {
+                tick += 1
+            }
+        }
+        controller.addObserver(observer)
+        onDispose { controller.removeObserver(observer) }
+    }
+    AccountsScreen(controller, tick)
+}
+
+@Composable
+private fun RevisingHome(controller: AiCfoController) {
+    var tick by remember { mutableIntStateOf(0) }
+    DisposableEffect(controller) {
+        val observer = object : AppObserver {
+            override fun onChanged() {
+                tick += 1
+            }
+        }
+        controller.addObserver(observer)
+        onDispose { controller.removeObserver(observer) }
+    }
+    HomeScreen(controller, tick, wide = false) {}
 }
