@@ -107,7 +107,9 @@ Soft-card tokens stay the app tokens: background `#F4F5F7`, white cards, Inter o
 
 ## Android captures
 
-`docs/design/auth/email-login/` holds three Compose draws of this login: email entry before a session, the code screen after a valid address, and the PIN lock on a cold start with a saved session. They are not device screenshots. The emulator guest did not boot, so there is no running-UI capture. iOS was not compiled.
+`docs/design/auth/device/` holds the device screenshots of this login from a Galaxy S23 FE on Android 16 (Sauce Labs session `e862d7ed-6c66-4ea1-b3fa-3aab6098d8e1`, app `0ae985b01f401c38ca1457c1bac583575e74e6ed`): email entry before a session, the code screen after a valid address, and the PIN lock on a cold start. Those are device screenshots.
+
+`docs/design/auth/email-login/` is an earlier Compose draw of the same three screens. Those files are not the device shots. iOS was not compiled.
 
 ## Older phone boards
 

@@ -2,9 +2,19 @@
 
 The current login is an email plus a one-time code or magic link ([docs/AUTH.md](../../AUTH.md)). [MARK-HANDOFF.md](MARK-HANDOFF.md) is the old phone spec.
 
-## Email login (Compose fallback)
+## Device screenshots (Galaxy S23 FE)
 
-These three PNGs are the email login. They are **not** device screenshots. An Android 15 emulator was started on this machine (KVM was available), but the guest never finished booting and `adb` stayed offline, so nothing was captured from a running Android UI. Each file is a Jetpack Compose draw of the real `AuthFlowScreen` / `LockScreen` through Robolectric (`GraphicsMode.NATIVE`, software draw of the activity window). Debug copy is visible, including the code `000000`. No mail is sent. iOS was not compiled, and these boards are not iOS.
+These three PNGs are the email login on a real phone. Galaxy S23 FE, Android 16, Sauce Labs session [e862d7ed-6c66-4ea1-b3fa-3aab6098d8e1](https://app.saucelabs.com/tests/e862d7ed-6c66-4ea1-b3fa-3aab6098d8e1). The installed app is commit `0ae985b01f401c38ca1457c1bac583575e74e6ed`. They are device screenshots, not Compose captures. iOS was not compiled.
+
+| # | Screen | File |
+| --- | --- | --- |
+| 1 | Email entry, before a session. "Email me a code" is still on screen | [device/01-email-entry.png](device/01-email-entry.png) |
+| 2 | One-time code entry after a valid email. No mail was sent | [device/02-code-entry.png](device/02-code-entry.png) |
+| 3 | Cold-start PIN lock with a saved session. Device unlock only. No biometric prompt | [device/03-cold-unlock.png](device/03-cold-unlock.png) |
+
+## Email login (Compose fallback, not these shots)
+
+The PNGs in `email-login/` are an earlier Robolectric draw of the same screens. They are not device screenshots and they are not the shots above. An Android 15 emulator was started on the build machine, but the guest never finished booting, so those files were drawn from Compose instead. Debug copy is visible, including the code `000000`. No mail is sent. They are not iOS.
 
 | # | Screen | File |
 | --- | --- | --- |
