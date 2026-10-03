@@ -18,7 +18,7 @@ shared/       KMP — domain, use cases, Maya stub, entitlement, security contra
 
 | Module | What lives here |
 | --- | --- |
-| `shared/src/commonMain` | Profile, accounts, moves, onboarding, 30-day trial, paywall, QA overrides, redaction, link-token policy, market packs. Entry point: `AiCfoController`. |
+| `shared/src/commonMain` | Profile, accounts, moves, onboarding, 25-day trial, paywall, QA overrides, redaction, link-token policy, market packs. Entry point: `AiCfoController`. |
 | `shared/src/androidMain` | Clock and time-zone actuals (`System.currentTimeMillis`, `java.time`). |
 | `shared/src/iosMain` | Clock and time-zone actuals (`NSDate`, `NSTimeZone`). |
 | `androidApp` | Compose screens, Android Keystore token vault, biometric prompt, fold / large-width split. |
@@ -26,7 +26,7 @@ shared/       KMP — domain, use cases, Maya stub, entitlement, security contra
 
 `AiCfoController` is constructed by each app with a platform `TokenVault`, `LocalStore`, and optional `LocalStrings`. The default market is the United States. The UIs render the models it returns. They do not reimplement ranking, trial math, or the Maya plan.
 
-Not in this MVP: budgets, charts as the home story, P2P, tax filing, a free-form chat on Home, or live Plaid. Bank linking is a read-only stub with a real sync state machine (`SyncStatus`, cold start / foreground / pull-to-refresh). See `docs/SYNC.md`. Canada, Europe, and the UAE are config stubs only — the shipped coach plan is still Maya in the US.
+Not in this MVP: budgets, charts as the home story, P2P, tax filing, a free-form chat on Home, or production Plaid. Android can open a read-only **sandbox** Link session when sandbox credentials are in gitignored `local.properties`. Without them, Connect says Plaid is not configured. The Maya sample stays a debug QA path and does not unlock Home figures. See `docs/SYNC.md`. Canada, Europe, and the UAE are config stubs only — the shipped coach plan is still Maya in the US.
 
 ## Markets
 
@@ -52,7 +52,7 @@ Floating pill nav: **Home · Moves · Accounts · Settings**.
 
 | Screen | Behavior |
 | --- | --- |
-| Onboarding | Welcome → actions, not charts → read-only connect. The 30-day Pro trial step comes after phone OTP and unlock setup. See `docs/AUTH.md`. |
+| Onboarding | Welcome → actions, not charts → read-only connect. The 25-day Pro trial step comes after phone OTP and unlock setup. See `docs/AUTH.md`. |
 | Phone + OTP | Account login. US numbers, 6-digit code. Session is stored only after a correct code. |
 | Email | Monthly savings report. Skippable. Not a login. |
 | Unlock setup | Android PIN or biometrics. iOS Face ID / Touch ID or device passcode. |
@@ -64,7 +64,7 @@ Floating pill nav: **Home · Moves · Accounts · Settings**.
 | Settings | Profile, Face ID / biometric toggle, Log out, notifications, privacy, disconnect. QA tools appear only in debug builds. |
 | Paywall | Hard stop when the trial is over. $9.99/month or $79/year. No forever-free plan. |
 
-Onboarding intro follows Sofia’s v1.1 boards (`OnboardingScreen` / `OnboardingView`): welcome, actions, then connect. **Connect securely** links the read-only Maya sample; **Skip for now** continues without linking. If the vault or link policy rejects a token, connect fails softly: nothing is marked linked, onboarding stays on the connect step, and the screen shows an error. Phone, OTP, the optional report email, and device-unlock setup come next (`docs/AUTH.md`). **Start free 30-day trial** then starts the clock. **Maybe later** finishes onboarding without a trial, so the hard paywall shows after unlock.
+Onboarding intro follows Sofia’s v1.1 boards (`OnboardingScreen` / `OnboardingView`): welcome, actions, then connect. **Connect securely** opens Plaid Link (sandbox) on Android. **Skip for now** continues without linking. If Link is not configured, or the vault rejects the access token, nothing is marked linked and the screen shows an error. Debug builds can still link the Maya sample from Accounts. Phone, OTP, the optional report email, and device-unlock setup come next (`docs/AUTH.md`). **Start free 25-day trial** then starts the clock. **Maybe later** finishes onboarding without a trial, so the hard paywall shows after unlock.
 
 The last main tab (Home, Moves, Accounts, Settings) is stored with the other local flags and restored after process death.
 
@@ -86,17 +86,17 @@ Home opens on the first still-open move. Marking Gympass done or skipped promote
 
 ## Trial, paywall, and the QA flip
 
-- **Start free 30-day trial** starts a **30-day full Pro trial**. **Maybe later** does not — the hard paywall is next, so there is no forever-free path.
+- **Start free 25-day trial** starts a **25-day full Pro trial**. **Maybe later** does not — the hard paywall is next, so there is no forever-free path.
 - When that clock runs out, the app shows a **hard paywall**. There is no free tier after the trial.
 - Prices: **$9.99/month** or **$79/year**. Purchase buttons in this build are simulated and mark the account Pro.
-- Replaying onboarding does **not** restart the 30 days.
+- Replaying onboarding does **not** restart the 25 days.
 
 QA controls are in **Settings → QA · trial / paywall** only when `Qa.toolsEnabled(debugBuild)` is true. That is debug/DEBUG builds. Release builds pass `debugBuild = false` (Android `BuildConfig.DEBUG`, iOS `#if DEBUG`), so the tools, the paywall **QA: return to trial** button, and `debugForce*` are absent. A release build also ignores a stored `qa_override`, so a planted preference cannot force the trial or the paywall.
 
 | Control | Effect |
 | --- | --- |
 | Show paywall | Force the hard paywall, even inside an active trial. |
-| Restore trial | Force the trial presentation (30 days left) without waiting. |
+| Restore trial | Force the trial presentation (25 days left) without waiting. |
 | Simulate Pro | Force a Pro entitlement. |
 | Clear QA override | Drop the override and use the real clock / simulated subscription. |
 | Replay onboarding | Show the four steps again. The original trial start is kept. |
@@ -111,7 +111,7 @@ The trial start, subscription flag, selected tab, move statuses, and bank sync m
 - Raw bank passwords are rejected. The vault only accepts `link_…` tokens (`LinkPolicy`).
 - Android stores those tokens with an Android Keystore AES-GCM key. iOS stores them in the Keychain (`kSecAttrAccessibleWhenUnlockedThisDeviceOnly`). Both vaults call shared `LinkPolicy.accepts` before writing. A rejected token is not stored.
 - Cleartext HTTP is off (`network_security_config.xml`, `TlsPolicy.cleartextAllowed = false`).
-- `TlsPolicy.spkiPins` is the certificate-pinning hook. The pin is a placeholder and must be replaced before a real API host is called. This scaffold makes no network calls and does not request `INTERNET`.
+- `TlsPolicy.spkiPins` is the certificate-pinning hook. The pin is a placeholder and is not enforced on the Plaid client. Android requests `INTERNET` and calls only `https://sandbox.plaid.com`. Cleartext stays off.
 - `SafeLog.redact` strips link tokens, `password=` / `token=` assignments, emails, and 13–19 digit numbers. The logger does not forward the original line.
 - Accounts render a Read-only badge. Stored account data is a mask (last four) plus a display balance — no full account numbers.
 - Device unlock gates a cold start while an account session exists. Biometrics and the PIN are not account login. Release builds always keep an unlock path (biometrics, Android PIN, or the iOS device passcode). Debug builds leave the lock off until the user opts in, so emulator QA is not stuck, and the phone screen can show **Debug skip**. Settings → **Lock now** shows the gate without reinstalling. Log out clears the account session.
@@ -147,10 +147,17 @@ Requirements: JDK 17 or 21, Android SDK 35 (platform + build-tools 35.0.0).
 ```bash
 cp local.properties.example local.properties
 # edit sdk.dir, or export ANDROID_HOME
+# optional, for a real sandbox Link session (debug builds only):
+# PLAID_CLIENT_ID=...
+# PLAID_SECRET=...   # Sandbox secret. Never a production secret. Never commit it.
 
 ./gradlew :shared:testDebugUnitTest
 ./gradlew :androidApp:assembleDebug
 ```
+
+A debug build with those two values can open Plaid Link. Leave them blank and the app still builds; Connect says **Plaid is not configured**. In Link, use Plaid’s sandbox institution (First Platypus Bank, `user_good` / `pass_good`). The dashboard must allow package `com.aicfo.app`. Release builds do not embed the secret.
+
+The Plaid item stays for the 25-day Pro trial, or after a simulated monthly or yearly subscription (`subscribed_plan`). Play billing is not wired. When the trial ends with no subscription, the app deletes the Keystore access token, asks sandbox `/item/remove` if it can, and Home bank figures return to “—”. A new link waits until that simulated subscription exists.
 
 Debug APK and release bundle (the `*.apk` / `*.aab` patterns are gitignored):
 
@@ -224,7 +231,7 @@ iOS is not compiled in that workflow. Compiling the Swift app, or the Kotlin/Nat
 
 ## Tests
 
-`shared/src/commonTest` covers the 30-day cliff, the debug QA override, the release path that cannot force a trial or paywall, “no forever free”, Gympass $47 × 12 = $564, home ranking, cancel / keep, link-token policy, a failed connect that stays unlinked, tab restore, the debug/release unlock default, the auth gate (no session → phone, session + unlock needed → lock, logout clears the session), and log redaction.
+`shared/src/commonTest` covers the 25-day cliff, the debug QA override, the release path that cannot force a trial or paywall, “no forever free”, Gympass $47 × 12 = $564, home ranking, cancel / keep, link-token policy, a failed connect that stays unlinked, tab restore, the debug/release unlock default, the auth gate (no session → phone, session + unlock needed → lock, logout clears the session), and log redaction.
 
 ```bash
 ./gradlew :shared:testDebugUnitTest

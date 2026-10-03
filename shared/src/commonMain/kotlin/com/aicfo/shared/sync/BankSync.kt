@@ -55,6 +55,8 @@ data class ProviderTransaction(
     val currency: String,
     val postedAtEpochMs: Long,
     val name: String,
+    /** Institution category, such as a Plaid personal-finance primary. Empty when unknown. */
+    val category: String = "",
 )
 
 /** Balance row returned by a [BankLinkSource]. Display labels are formatted later. */
@@ -67,12 +69,15 @@ data class SyncedAccount(
     val group: String,
     val initials: String,
     val colorHex: String,
+    /** savings, cash, credit, loan, or investment. Empty on older snapshots. */
+    val role: String = "",
 )
 
 sealed class BankFetch {
     data class Ok(
         val accounts: List<SyncedAccount>,
         val transactions: List<ProviderTransaction>,
+        val removedTransactionIds: List<String> = emptyList(),
     ) : BankFetch()
 
     data class Unavailable(val reason: String) : BankFetch()
@@ -98,6 +103,48 @@ interface BankLinkSource {
     val readOnly: Boolean
 
     fun fetch(nowMs: Long, deliver: (BankFetch) -> Unit)
+
+    /** Drop provider cursors or other link state. Must not log tokens. */
+    fun onDisconnected() {}
+}
+
+/** Live read-only provider id. The Maya sample must not use this id. */
+object BankLinkId {
+    const val PLAID: String = "plaid"
+}
+
+/**
+ * Account role used to roll balances into Home. Not a transfer instruction.
+ */
+object AccountRole {
+    const val SAVINGS: String = "savings"
+    const val CASH: String = "cash"
+    const val CREDIT: String = "credit"
+    const val LOAN: String = "loan"
+    const val INVESTMENT: String = "investment"
+    const val OTHER: String = "other"
+
+    fun fromInstitution(type: String, subtype: String): String {
+        val kind = type.lowercase()
+        val sub = subtype.lowercase()
+        return when (kind) {
+            "depository" -> if (sub.contains("sav")) SAVINGS else CASH
+            "credit" -> CREDIT
+            "loan" -> LOAN
+            "investment" -> INVESTMENT
+            else -> OTHER
+        }
+    }
+
+    fun fromNameAndGroup(name: String, group: String): String {
+        val lower = name.lowercase()
+        return when (group) {
+            "CASH" -> if (lower.contains("sav")) SAVINGS else CASH
+            "INVESTMENTS" -> INVESTMENT
+            "CARDS_AND_LOANS" -> if (lower.contains("loan")) LOAN else CREDIT
+            else -> OTHER
+        }
+    }
 }
 
 data class IngestReport(
@@ -144,6 +191,18 @@ class TransactionLedger(private val store: LocalStore) {
         store.remove(KEY)
     }
 
+    fun all(): List<ProviderTransaction> = load().values.toList()
+
+    fun drop(ids: Collection<String>) {
+        if (ids.isEmpty()) return
+        val current = load().toMutableMap()
+        var changed = false
+        for (id in ids) {
+            if (current.remove(id) != null) changed = true
+        }
+        if (changed) save(current)
+    }
+
     private fun load(): Map<String, ProviderTransaction> {
         val raw = store.read(KEY).orEmpty()
         if (raw.isEmpty()) return emptyMap()
@@ -170,7 +229,8 @@ class TransactionLedger(private val store: LocalStore) {
         if (tx.accountId.indexOf(RECORD) >= 0 || tx.accountId.indexOf(FIELD) >= 0) return null
         if (tx.currency.length != 3) return null
         val name = SafeLog.redact(tx.name).replace(RECORD, " ").replace(FIELD, " ")
-        return tx.copy(name = name)
+        val category = tx.category.replace(RECORD, "").replace(FIELD, "").take(64)
+        return tx.copy(name = name, category = category)
     }
 
     private fun encode(tx: ProviderTransaction): String = listOf(
@@ -180,11 +240,12 @@ class TransactionLedger(private val store: LocalStore) {
         tx.currency,
         tx.postedAtEpochMs.toString(),
         tx.name,
+        tx.category,
     ).joinToString(FIELD)
 
     private fun decode(line: String): ProviderTransaction? {
         val bits = line.split(FIELD)
-        if (bits.size != 6) return null
+        if (bits.size != 6 && bits.size != 7) return null
         val amount = bits[2].toLongOrNull() ?: return null
         val posted = bits[4].toLongOrNull() ?: return null
         if (bits[0].isBlank() || bits[0].startsWith("link_")) return null
@@ -195,6 +256,7 @@ class TransactionLedger(private val store: LocalStore) {
             currency = bits[3],
             postedAtEpochMs = posted,
             name = bits[5],
+            category = if (bits.size == 7) bits[6] else "",
         )
     }
 
@@ -235,12 +297,18 @@ internal object AccountSnapshot {
         clean(account.group),
         clean(account.initials),
         clean(account.colorHex),
+        clean(account.role),
     ).joinToString(FIELD)
 
     private fun decode(line: String): SyncedAccount? {
         val bits = line.split(FIELD)
-        if (bits.size != 8 || bits[0].isEmpty()) return null
+        if ((bits.size != 8 && bits.size != 9) || bits[0].isEmpty()) return null
         val minor = bits[3].toLongOrNull() ?: return null
+        val role = if (bits.size == 9 && bits[8].isNotEmpty()) {
+            bits[8]
+        } else {
+            AccountRole.fromNameAndGroup(bits[1], bits[5])
+        }
         return SyncedAccount(
             id = bits[0],
             name = bits[1],
@@ -250,6 +318,7 @@ internal object AccountSnapshot {
             group = bits[5],
             initials = bits[6],
             colorHex = bits[7],
+            role = role,
         )
     }
 
@@ -350,4 +419,5 @@ internal fun LinkedAccount.toSyncedAccount(): SyncedAccount = SyncedAccount(
     group = group.name,
     initials = initials,
     colorHex = colorHex,
+    role = AccountRole.fromNameAndGroup(name, group.name),
 )

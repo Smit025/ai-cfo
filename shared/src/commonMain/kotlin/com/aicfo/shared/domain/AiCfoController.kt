@@ -42,8 +42,10 @@ import com.aicfo.shared.security.SecureStore
 import com.aicfo.shared.security.TokenVault
 import com.aicfo.shared.sync.AccountSnapshot
 import com.aicfo.shared.sync.BankFetch
+import com.aicfo.shared.sync.BankLinkId
 import com.aicfo.shared.sync.BankLinkSource
 import com.aicfo.shared.sync.Freshness
+import com.aicfo.shared.sync.HomeFigures
 import com.aicfo.shared.sync.MayaStubBankSource
 import com.aicfo.shared.sync.ProviderTransaction
 import com.aicfo.shared.sync.SyncCode
@@ -165,7 +167,11 @@ class AiCfoController(
     private var selectedMoveId: String? = null
     private var tab: String = "HOME"
     private var linkError: String = ""
+    private var linkConfigured: Boolean = true
+    private var linkUnavailableLabel: String = "Plaid is not configured"
+    private var linkNote: String = ""
     private var banks: BankLinkSource = MayaStubBankSource()
+    private val mayaSample: BankLinkSource = MayaStubBankSource()
     private val ledger = TransactionLedger(store)
     private var syncStatus: SyncStatus = SyncStatus.Idle
     private var lastSyncedAt: Long? = null
@@ -185,14 +191,17 @@ class AiCfoController(
         observers -= observer
     }
 
-    fun gate(): String = AppGate.resolve(
-        hasSession = hasSession(),
-        introComplete = introComplete(),
-        authSetupComplete = authSetupComplete(),
-        onboardingComplete = onboardingComplete(),
-        deviceUnlockNeeded = deviceUnlockNeeded(),
-        entitled = entitlement().phase != Phase.PAYWALL,
-    )
+    fun gate(): String {
+        releaseUnpaidPlaidLink()
+        return AppGate.resolve(
+            hasSession = hasSession(),
+            introComplete = introComplete(),
+            authSetupComplete = authSetupComplete(),
+            onboardingComplete = onboardingComplete(),
+            deviceUnlockNeeded = deviceUnlockNeeded(),
+            entitled = entitlement().phase != Phase.PAYWALL,
+        )
+    }
 
     fun hasSession(): Boolean = readSession() != null
 
@@ -275,8 +284,16 @@ class AiCfoController(
         market.config.planMonth,
     )
 
-    fun onboarding(): OnboardingModel =
-        OnboardingUseCase.build(displayOnboardingStep(), banksLinked(), market, copy, linkError)
+    fun onboarding(): OnboardingModel = OnboardingUseCase.build(
+        displayOnboardingStep(),
+        banksLinked(),
+        market,
+        copy,
+        linkError,
+        linkConfigured,
+        linkUnavailableLabel,
+        linkNote,
+    )
 
     fun advanceOnboarding() {
         if (!onboarding().canAdvance) return
@@ -293,12 +310,81 @@ class AiCfoController(
     }
 
     /**
-     * Primary button. Connect securely links the read-only sample, then finishes the intro.
-     * The trial step is the primary again after phone OTP and unlock setup.
+     * Primary button for welcome, the value step, and the trial.
+     * The connect step does not link the Maya sample. Android opens Plaid Link instead.
+     * iOS reports that Link is not available. Skip for now still leaves institutions unlinked.
      */
     fun primaryOnboarding() {
-        if (onboardingStep == 2 && !introComplete() && !connectReadOnlyStub()) return
+        if (onboardingStep == 2 && !introComplete() && !banksLinked()) {
+            requestReadOnlyLink()
+            return
+        }
         advanceOnboarding()
+    }
+
+    /**
+     * Android and iOS call this before the first frame.
+     * When [configured] is false, Connect names [unavailableLabel] and must not link the Maya sample.
+     */
+    fun setBankLinkAvailability(configured: Boolean, unavailableLabel: String, note: String) {
+        linkConfigured = configured
+        linkUnavailableLabel = unavailableLabel.ifBlank { "Plaid is not configured" }
+        linkNote = note
+        publish()
+    }
+
+    fun reportLinkError(message: String) {
+        val cleaned = SafeLog.redact(message).take(180).trim()
+        linkError = if (cleaned.isEmpty() || cleaned.equals("null", ignoreCase = true)) {
+            "Couldn't link these accounts. Nothing was saved."
+        } else {
+            cleaned
+        }
+        publish()
+    }
+
+    fun clearLinkError() {
+        if (linkError.isEmpty()) return
+        linkError = ""
+        publish()
+    }
+
+    /**
+     * Shared fallback when the platform did not open Link.
+     * Does not link the Maya sample and does not move money.
+     */
+    fun requestReadOnlyLink() {
+        if (!preparePlaidLink()) return
+        if (!linkConfigured) {
+            reportLinkError(linkUnavailableLabel)
+            return
+        }
+        reportLinkError("Couldn't open Plaid Link.")
+    }
+
+    /**
+     * A Plaid item may stay during the 25-day Pro trial, or while [subscribed_plan]
+     * is MONTHLY or YEARLY. That plan flag is a simulated subscription. Play billing
+     * is not wired, so a finished trial with no subscription is unpaid.
+     * Onboarding may still link before the trial starts. After onboarding, a paywall
+     * phase is unpaid and the link has to come off.
+     */
+    fun plaidConnectionAllowed(): Boolean {
+        val phase = entitlement().phase
+        if (phase == Phase.TRIAL || phase == Phase.PRO) return true
+        if (!onboardingComplete()) return true
+        return false
+    }
+
+    /**
+     * Call before opening Plaid Link or saving an access token.
+     * Returns false when the user is unpaid, and sets [linkError].
+     */
+    fun preparePlaidLink(): Boolean {
+        releaseUnpaidPlaidLink()
+        if (plaidConnectionAllowed()) return true
+        reportLinkError(unpaidLinkMessage())
+        return false
     }
 
     /**
@@ -322,10 +408,12 @@ class AiCfoController(
     }
 
     /**
-     * Read-only sample link. A policy or vault failure does not crash and does not
-     * mark institutions linked. Any tokens written during the attempt are cleared.
+     * Debug-only Maya Chen sample. Release builds ignore it.
+     * A policy or vault failure does not crash and does not mark institutions linked.
+     * This sync does not unlock Home figures.
      */
     fun connectReadOnlyStub(): Boolean {
+        if (!Qa.toolsEnabled(debugBuild)) return false
         for (account in MayaStub.accounts) {
             val token = "link_stub_${account.id}"
             val stored = try {
@@ -346,16 +434,53 @@ class AiCfoController(
             }
         }
         store.write(Keys.BANKS, "true")
+        store.write(Keys.LINK_KIND, MayaStubBankSource.ID)
+        store.write(Keys.REAL_SYNC, "false")
         linkError = ""
-        SafeLog.debug("link", "read-only sample linked")
+        SafeLog.debug("link", "debug sample linked")
         refreshAccounts(SyncTrigger.Manual)
         return true
     }
 
+    /**
+     * The platform already stored a read-only access token in the vault.
+     * Marks the link and refreshes. Does not read the token and does not move money.
+     */
+    fun completeExternalReadOnlyLink(advanceIntro: Boolean): Boolean {
+        if (!banks.readOnly) {
+            reportLinkError("Bank link refused: read-only connections only")
+            return false
+        }
+        if (!preparePlaidLink()) {
+            // The platform may already have stored an access token. Drop it.
+            disconnectAll()
+            return false
+        }
+        store.write(Keys.LINK_KIND, banks.id)
+        store.write(Keys.BANKS, "true")
+        store.write(Keys.NEEDS_REAUTH, "false")
+        linkError = ""
+        SafeLog.debug("link", "read-only ${banks.id} linked")
+        refreshAccounts(SyncTrigger.Manual)
+        if (advanceIntro && onboardingStep == 2 && !introComplete()) {
+            finishIntro()
+        }
+        return true
+    }
+
+    fun activeBankLinkId(): String = activeSource().id
+
     fun disconnectAll() {
         syncGeneration += 1
+        try {
+            banks.onDisconnected()
+        } catch (_: Throwable) {
+            // Unlink still clears local metadata.
+        }
         vault.clear()
         store.write(Keys.BANKS, "false")
+        store.remove(Keys.LINK_KIND)
+        store.write(Keys.REAL_SYNC, "false")
         clearSync()
         publish()
     }
@@ -367,6 +492,7 @@ class AiCfoController(
      */
     fun refreshAccounts(reason: SyncTrigger) {
         lastTrigger = reason
+        releaseUnpaidPlaidLink()
         if (!banksLinked()) {
             if (syncStatus !is SyncStatus.Idle || lastSyncedAt != null || syncedAccounts.isNotEmpty()) {
                 clearSync()
@@ -378,7 +504,8 @@ class AiCfoController(
         val ticket = syncGeneration
         syncStatus = SyncStatus.Syncing
         publish()
-        if (!banks.readOnly) {
+        val source = activeSource()
+        if (!source.readOnly) {
             finish(ticket, BankFetch.Unavailable("Bank link refused: read-only connections only"))
             return
         }
@@ -387,7 +514,7 @@ class AiCfoController(
             return
         }
         try {
-            banks.fetch(clock.nowEpochMs()) { result ->
+            source.fetch(clock.nowEpochMs()) { result ->
                 finish(ticket, result)
             }
         } catch (error: Throwable) {
@@ -454,13 +581,17 @@ class AiCfoController(
         return connectReadOnlyStub()
     }
 
-    fun home(): HomeModel = HomeUseCase.build(
+    fun home(): HomeModel {
+        releaseUnpaidPlaidLink()
+        return HomeUseCase.build(
         resolved(),
         notificationsEnabled(),
         market,
         copy,
         syncLine(),
-    )
+            bankFigures(),
+        )
+    }
 
     fun moves(): MovesModel = MovesUseCase.build(resolved(), market, copy)
 
@@ -469,13 +600,21 @@ class AiCfoController(
         return DetailUseCase.build(row)
     }
 
-    fun accounts(): AccountsModel = AccountsUseCase.build(
+    fun accounts(): AccountsModel {
+        releaseUnpaidPlaidLink()
+        return AccountsUseCase.build(
         linked = banksLinked(),
         copy = copy,
         linkError = linkError,
         accounts = displayAccounts(),
         sync = syncLine(),
-    )
+        linkConfigured = linkConfigured,
+        unavailableLabel = linkUnavailableLabel,
+        linkNote = linkNote,
+        sampleLink = banksLinked() && activeSource().id == MayaStubBankSource.ID,
+            sampleCta = if (Qa.toolsEnabled(debugBuild) && !banksLinked()) "Link read-only sample" else "",
+        )
+    }
 
     fun settings(): SettingsModel {
         val ent = entitlement()
@@ -497,6 +636,7 @@ class AiCfoController(
             planLabel = ent.planLabel,
             planDetail = ent.planDetail,
             banksLinked = banksLinked(),
+            sampleLink = banksLinked() && activeSource().id == MayaStubBankSource.ID,
             phase = ent.phase,
             qaEnabled = Qa.toolsEnabled(debugBuild),
             signedIn = session != null,
@@ -1011,11 +1151,55 @@ class AiCfoController(
         syncedAccounts = AccountSnapshot.read(store)
     }
 
+    private fun activeSource(): BankLinkSource {
+        if (Qa.toolsEnabled(debugBuild) && store.read(Keys.LINK_KIND) == MayaStubBankSource.ID) {
+            return mayaSample
+        }
+        return banks
+    }
+
+    /**
+     * Trial ended, or onboarding finished with no trial and no simulated subscription.
+     * Drops the Plaid item so a non-paying user does not keep a live link.
+     * The Maya sample is not a Plaid item and stays.
+     */
+    private fun releaseUnpaidPlaidLink() {
+        if (plaidConnectionAllowed()) return
+        val plaidHeld = store.read(Keys.LINK_KIND) == BankLinkId.PLAID || store.read(Keys.REAL_SYNC) == "true"
+        if (!plaidHeld) return
+        disconnectAll()
+    }
+
+    private fun unpaidLinkMessage(): String {
+        val ended = entitlement().trialConsumed
+        return if (ended) {
+            "Your Pro trial has ended. Subscribe to connect a bank."
+        } else {
+            "Subscribe to connect a bank."
+        }
+    }
+
+    /** Only a successful fetch from the Plaid source unlocks Home figures. */
+    private fun realSyncUnlocked(): Boolean =
+        banksLinked() &&
+            store.read(Keys.REAL_SYNC) == "true" &&
+            store.read(Keys.LINK_KIND) == BankLinkId.PLAID
+
+    private fun bankFigures() = if (realSyncUnlocked()) {
+        HomeFigures.derive(
+            accounts = syncedAccounts,
+            transactions = ledger.all(),
+            currency = market.config.currency,
+            monthKey = MarketCalendar.monthKey(clock.nowEpochMs(), market.config.timeZoneId),
+            timeZoneId = market.config.timeZoneId,
+        )
+    } else {
+        null
+    }
+
     private fun displayAccounts(): List<SyncedAccount> {
         if (!banksLinked()) return emptyList()
-        if (syncedAccounts.isNotEmpty()) return syncedAccounts
-        if (banks.id == MayaStubBankSource.ID) return MayaStubBankSource.previewAccounts()
-        return emptyList()
+        return syncedAccounts
     }
 
     private fun syncLine(): SyncLine {
@@ -1039,10 +1223,16 @@ class AiCfoController(
         when (result) {
             is BankFetch.Ok -> {
                 ledger.ingest(result.transactions)
+                if (result.removedTransactionIds.isNotEmpty()) ledger.drop(result.removedTransactionIds)
                 syncedAccounts = result.accounts
                 AccountSnapshot.write(store, result.accounts)
                 lastSyncedAt = clock.nowEpochMs()
                 store.write(Keys.NEEDS_REAUTH, "false")
+                store.write(Keys.LINK_KIND, activeSource().id)
+                store.write(
+                    Keys.REAL_SYNC,
+                    if (activeSource().id == BankLinkId.PLAID) "true" else "false",
+                )
                 syncStatus = SyncStatus.Success(lastSyncedAt!!)
                 persistSync()
                 publish()
@@ -1148,6 +1338,8 @@ private object Keys {
     const val PASSCODE = "passcode_fallback"
     const val STEP = "onboarding_step"
     const val BANKS = "banks_linked"
+    const val LINK_KIND = "bank_link_kind"
+    const val REAL_SYNC = "real_bank_sync"
     const val TRIAL_START = "trial_started_at"
     const val OVERRIDE = "qa_override"
     const val PLAN = "subscribed_plan"

@@ -3,7 +3,7 @@ package com.aicfo.shared.security
 /**
  * Platform token vault. Implementations must encrypt at rest
  * (Android Keystore, iOS Keychain) and must never log values.
- * Raw bank passwords are not accepted — only link tokens.
+ * Raw bank passwords are not accepted. Values are link tokens or a Plaid sandbox access token.
  */
 interface TokenVault {
     fun put(key: String, value: String): Boolean
@@ -76,14 +76,16 @@ class MemoryLocalStore : LocalStore {
 }
 
 object LinkPolicy {
+    private val sandboxAccess = Regex("^access-sandbox-[A-Za-z0-9\\-]{8,200}$")
+
     fun accepts(token: String): Boolean {
-        if (!token.startsWith("link_")) return false
-        if (token.length > 180) return false
+        if (token.any { it.isWhitespace() }) return false
         val lower = token.lowercase()
         if (lower.contains("password")) return false
         if (lower.contains("ssn")) return false
-        if (token.any { it.isWhitespace() }) return false
-        return true
+        if (lower.startsWith("access-production-") || lower.startsWith("access-development-")) return false
+        if (token.startsWith("link_")) return token.length <= 180
+        return sandboxAccess.matches(token)
     }
 }
 
@@ -110,6 +112,7 @@ object TlsPolicy {
 
 object SafeLog {
     private val token = Regex("""link_[A-Za-z0-9_\-]+""")
+    private val plaidToken = Regex("""(?:access|public|link)-(?:sandbox|development|production)-[A-Za-z0-9\-]+""")
     private val session = Regex("""sess_[A-Za-z0-9_\-]+""")
     private val secretAssign = Regex("""(?i)\b(password|passwd|secret|token|ssn|cvv|otp|pin)\b\s*[:=]\s*\S+""")
     private val otpCode = Regex("""(?i)\b(?:otp|one-time code|verification code)\b\s*[:=]?\s*\d{4,8}""")
@@ -122,6 +125,7 @@ object SafeLog {
             "$key=[redacted]"
         }
         return secrets
+            .replace(plaidToken, "plaid_[redacted]")
             .replace(token, "link_[redacted]")
             .replace(session, "sess_[redacted]")
             .replace(otpCode, "otp=[redacted]")

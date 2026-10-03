@@ -94,7 +94,7 @@ Order above the fold:
 | `onboarding/01-welcome.png` | Onboarding · Welcome | Brand moment · tagline · Continue |
 | `onboarding/02-what-we-do.png` | Onboarding · Value | Actions-not-charts · 3 example moves |
 | `onboarding/03-connect.png` | Onboarding · Connect | Read-only trust · Bank/Cards/Loans/Investments |
-| `onboarding/04-trial.png` | Onboarding · Trial | 30-day Pro · no charge today · paywall after |
+| `onboarding/04-trial.png` | Onboarding · Trial | 25-day Pro · no charge today · paywall after |
 | `onboarding/onboarding-board.png` | Onboarding collage | All 4 onboarding screens side by side |
 
 HTML sources in this folder (`home.html`, etc.) can be re-shot via `node screenshot.mjs`.
@@ -110,7 +110,7 @@ Onboarding HTML + PNGs live in `onboarding/`; re-shot via `cd onboarding && node
 01 Welcome  → brand + sharp line + Continue
 02 Value    → actions not charts (example moves mini-cards) + Continue
 03 Connect  → Read-only trust + account-type chips + Connect securely / Skip
-04 Trial    → 30-day Pro included list + Start trial / Maybe later
+04 Trial    → 25-day Pro included list + Start trial / Maybe later
 ```
 
 **Copy notes (locked tone — Maya / calm premium)**
@@ -120,9 +120,9 @@ Onboarding HTML + PNGs live in `onboarding/`; re-shot via `cd onboarding && node
 | Welcome | Mark is a **violet F squircle** (the gold coin on the board is rejected). Brand lines **FINWISE** / **Your AI CFO** (tagline Finwise — Your AI CFO). “Your money, what to do next” | Continue |
 | Value | “We tell you what to do this month” · explicit: we don’t lead with budgets/charts/net-worth | Continue |
 | Connect | “We never move money without you” · **Read-only** badge · generic chips (Bank · Cards · Loans · Investments) — no trademarked logos | Connect securely · Skip for now |
-| Trial | Full moves · unlimited actions · all accounts · why+math · **No charge today · Cancel anytime · Then paywall** | Start free 30-day trial · Maybe later |
+| Trial | Full moves · unlimited actions · all accounts · why+math · **No charge today · Cancel anytime · Then paywall** | Start free 25-day trial · Maybe later |
 
-**Monetization:** 30-day full Pro trial → then paywall. Do not imply free forever on Maybe later; keep secondary simple.
+**Monetization:** 25-day full Pro trial → then paywall. Do not imply free forever on Maybe later; keep secondary simple.
 
 **Trust:** Connect is read-only aggregation (Plaid-class implication without naming Plaid unless already in product). Never auto-move money.
 

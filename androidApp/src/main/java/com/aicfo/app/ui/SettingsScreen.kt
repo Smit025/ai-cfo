@@ -150,7 +150,11 @@ fun SettingsScreen(controller: AiCfoController, tick: Int) {
             Text("Link tokens are encrypted in the Android Keystore.", color = AiColors.Muted, fontSize = 14.sp)
             Text("Logs redact tokens, passwords, and card numbers.", color = AiColors.Muted, fontSize = 14.sp)
             Text(
-                if (model.banksLinked) "Sample institutions are linked." else "No institutions linked.",
+                when {
+                    model.sampleLink -> "Maya sample is linked. It is not your bank."
+                    model.banksLinked -> "A read-only bank is linked."
+                    else -> "No institutions linked."
+                },
                 color = AiColors.Muted,
                 fontSize = 14.sp,
             )
@@ -170,7 +174,7 @@ fun SettingsScreen(controller: AiCfoController, tick: Int) {
             ) {
                 Text(qaTitle, color = AiColors.Text, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                 Text(
-                    "Debug tools for this build. Force the hard paywall, restore the 30-day trial, or simulate a bank that needs reconnect.",
+                    "Debug tools for this build. Force the hard paywall, restore the 25-day trial, or simulate a bank that needs reconnect.",
                     color = AiColors.Muted,
                     fontSize = 13.sp,
                     lineHeight = 18.sp,

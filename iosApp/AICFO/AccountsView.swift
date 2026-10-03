@@ -41,10 +41,22 @@ struct AccountsView: View {
                                 .font(Theme.body(14))
                                 .foregroundStyle(Theme.danger)
                         }
+                        if !accounts.linkNote.isEmpty {
+                            Text(accounts.linkNote)
+                                .font(Theme.body(13))
+                                .foregroundStyle(Theme.muted)
+                        }
                         PrimaryButton(label: accounts.emptyCta) {
-                            _ = model.controller.connectReadOnlyStub()
+                            model.controller.requestReadOnlyLink()
                         }
                         .padding(.top, 6)
+                        if !accounts.sampleCta.isEmpty {
+                            Button(accounts.sampleCta) {
+                                _ = model.controller.connectReadOnlyStub()
+                            }
+                            .font(Theme.semi(15))
+                            .foregroundStyle(Theme.muted)
+                        }
                     }
                     .padding(18)
                     .softCard()

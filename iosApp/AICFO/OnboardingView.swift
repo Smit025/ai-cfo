@@ -39,7 +39,11 @@ struct OnboardingView: View {
                     .padding(.bottom, 12)
             }
             PrimaryButton(label: step.primaryCta) {
-                model.controller.primaryOnboarding()
+                if Int(step.step) == 2 && !step.banksLinked {
+                    model.controller.requestReadOnlyLink()
+                } else {
+                    model.controller.primaryOnboarding()
+                }
             }
             secondary(step)
         }
@@ -191,6 +195,12 @@ struct OnboardingView: View {
             .padding(18)
             .frame(maxWidth: .infinity, alignment: .leading)
             .softCard(radius: 22)
+            if !step.linkNote.isEmpty {
+                Text(step.linkNote)
+                    .font(Theme.body(13))
+                    .foregroundStyle(Theme.muted)
+                    .padding(.top, 10)
+            }
             Text(step.sectionLabel)
                 .font(Theme.semi(12))
                 .foregroundStyle(Theme.muted)

@@ -33,8 +33,13 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
+import android.os.Handler
+import android.os.Looper
 import com.aicfo.app.BuildConfig
 import com.aicfo.app.i18n.AndroidLocalStrings
+import com.aicfo.app.plaid.PlaidBankSource
+import com.aicfo.app.plaid.PlaidLinker
+import com.aicfo.app.plaid.plaidApiFromBuildConfig
 import com.aicfo.app.security.AndroidKeystoreSecureStore
 import com.aicfo.app.security.AndroidKeystoreTokenVault
 import com.aicfo.app.security.AndroidLocalStore
@@ -45,8 +50,22 @@ import com.aicfo.shared.domain.SystemAppClock
 import com.aicfo.shared.presentation.Gate
 import com.aicfo.shared.domain.AppObserver
 import com.aicfo.shared.sync.SyncTrigger
+import java.util.concurrent.Executors
 
 class AiCfoViewModel(app: Application) : AndroidViewModel(app) {
+    private val io = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "plaid-io").apply { isDaemon = true }
+    }
+    private val main = Handler(Looper.getMainLooper())
+    private val post: (() -> Unit) -> Unit = { block -> main.post(block) }
+    private val api = plaidApiFromBuildConfig()
+    private val banks = PlaidBankSource(
+        vault = AndroidKeystoreTokenVault(app),
+        store = AndroidLocalStore(app),
+        api = api,
+        io = io,
+        post = post,
+    )
     val controller: AiCfoController = AiCfoController(
         vault = AndroidKeystoreTokenVault(app),
         store = AndroidLocalStore(app),
@@ -55,8 +74,34 @@ class AiCfoViewModel(app: Application) : AndroidViewModel(app) {
         localStrings = AndroidLocalStrings(app),
         debugBuild = BuildConfig.DEBUG,
         secure = AndroidKeystoreSecureStore(app),
+        banks = banks,
+    )
+    internal val linker: PlaidLinker = PlaidLinker(
+        vault = AndroidKeystoreTokenVault(app),
+        store = AndroidLocalStore(app),
+        api = api,
+        source = banks,
+        controller = controller,
+        io = io,
+        main = post,
     )
     private var coldStartSent = false
+
+    init {
+        if (api.configured) {
+            controller.setBankLinkAvailability(
+                configured = true,
+                unavailableLabel = "Plaid is not configured",
+                note = "Sandbox · read-only. Finwise never moves money.",
+            )
+        } else {
+            controller.setBankLinkAvailability(
+                configured = false,
+                unavailableLabel = "Plaid is not configured",
+                note = "Add PLAID_CLIENT_ID and PLAID_SECRET to local.properties, then rebuild the debug app. Sandbox only.",
+            )
+        }
+    }
 
     fun onAppVisible() {
         if (!coldStartSent) {
@@ -65,6 +110,11 @@ class AiCfoViewModel(app: Application) : AndroidViewModel(app) {
         } else {
             controller.refreshAccounts(SyncTrigger.Foreground)
         }
+    }
+
+    override fun onCleared() {
+        io.shutdownNow()
+        super.onCleared()
     }
 }
 
@@ -99,19 +149,21 @@ fun AiCfoRoot(vm: AiCfoViewModel = viewModel()) {
             .background(AiColors.Bg),
     ) {
         when (gate) {
-            Gate.ONBOARDING -> OnboardingScreen(controller, tick)
+            Gate.ONBOARDING -> OnboardingScreen(controller, tick) {
+                vm.linker.connect(advanceIntro = true)
+            }
             Gate.AUTH -> AuthFlowScreen(controller, tick)
             Gate.LOCK -> LockScreen(controller, tick) {
                 promptBiometric(activity) { ok -> controller.unlockFromBiometric(ok) }
             }
             Gate.PAYWALL -> PaywallScreen(controller, tick)
-            else -> MainShell(controller, tick)
+            else -> MainShell(controller, tick, vm.linker)
         }
     }
 }
 
 @Composable
-private fun MainShell(controller: AiCfoController, tick: Int) {
+private fun MainShell(controller: AiCfoController, tick: Int, linker: PlaidLinker) {
     val tab = controller.tab()
     var showDetail by remember { mutableStateOf(false) }
     val splitMode = rememberSplitMode()
@@ -163,7 +215,7 @@ private fun MainShell(controller: AiCfoController, tick: Int) {
                         }
                         Box(widthMod) {
                             when (tab) {
-                                "HOME" -> HomeScreen(controller, tick, wide) { id ->
+                                "HOME" -> HomeScreen(controller, tick, wide, onSync = { linker.onSyncAction(it) }) { id ->
                                     controller.selectMove(id)
                                     if (wide) controller.selectTab("MOVES") else showDetail = true
                                 }
@@ -171,7 +223,9 @@ private fun MainShell(controller: AiCfoController, tick: Int) {
                                     controller.selectMove(id)
                                     showDetail = true
                                 }
-                                "ACCOUNTS" -> AccountsScreen(controller, tick)
+                                "ACCOUNTS" -> AccountsScreen(controller, tick, onConnect = {
+                                    linker.connect(advanceIntro = false)
+                                }, onSync = { linker.onSyncAction(it) })
                                 else -> SettingsScreen(controller, tick)
                             }
                         }

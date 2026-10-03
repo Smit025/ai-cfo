@@ -7,7 +7,7 @@ import com.aicfo.shared.presentation.Phase
 import com.aicfo.shared.presentation.QaOverride
 
 object Pricing {
-    const val TRIAL_DAYS: Int = 30
+    const val TRIAL_DAYS: Int = 25
     val MONTHLY_CENTS: Long = UsMarketPack.monthlyPrice.minor
     val YEARLY_CENTS: Long = UsMarketPack.yearlyPrice.minor
     val MONTHLY_LABEL: String get() = MoneyFormat.standard(UsMarketPack.monthlyPrice)

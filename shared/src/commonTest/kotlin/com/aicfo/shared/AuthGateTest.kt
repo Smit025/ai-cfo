@@ -117,7 +117,7 @@ class AuthGateTest {
     @Test
     fun noSessionAfterIntroRoutesToAuth() {
         val app = debugApp()
-        repeat(3) { app.primaryOnboarding() }
+        skipConnect(app)
         assertEquals(Gate.AUTH, app.gate())
         assertEquals(AuthStep.PHONE, app.authStep())
         assertFalse(app.hasSession())
@@ -127,7 +127,7 @@ class AuthGateTest {
     fun debugOtpPersistsSessionAndRejectsAWrongCode() {
         val secure = MemorySecureStore()
         val app = debugApp(secure = secure)
-        repeat(3) { app.primaryOnboarding() }
+        skipConnect(app)
         assertFalse(app.submitPhone("555"))
         assertFalse(app.hasSession())
         assertTrue(app.submitPhone("5555551234"))
@@ -148,7 +148,7 @@ class AuthGateTest {
     @Test
     fun emailIsNotAnAccountLogin() {
         val app = debugApp()
-        repeat(3) { app.primaryOnboarding() }
+        skipConnect(app)
         app.verifyReady()
         val phone = app.sessionPhone()
         assertFalse(app.saveReportEmail("not-an-email"))
@@ -164,7 +164,7 @@ class AuthGateTest {
         val store = MemoryLocalStore()
         val secure = MemorySecureStore()
         val app = debugApp(store, secure)
-        repeat(3) { app.primaryOnboarding() }
+        skipConnect(app)
         app.verifyReady()
         app.skipReportEmail()
         assertFalse(app.saveDevicePin("12345", "12345"))
@@ -190,7 +190,7 @@ class AuthGateTest {
         val store = MemoryLocalStore()
         val secure = MemorySecureStore()
         val app = debugApp(store, secure)
-        repeat(3) { app.primaryOnboarding() }
+        skipConnect(app)
         app.testingSeedSession()
         app.primaryOnboarding()
         assertTrue(app.hasSession())
@@ -211,7 +211,7 @@ class AuthGateTest {
     @Test
     fun releaseRejectsTheDebugCodeAndCannotSkipThePhoneScreen() {
         val app = releaseApp()
-        repeat(3) { app.primaryOnboarding() }
+        skipConnect(app)
         assertEquals(Gate.AUTH, app.gate())
         assertFalse(app.submitPhone("5555551234"))
         assertFalse(app.hasSession())
@@ -259,6 +259,13 @@ class AuthGateTest {
         false,
         secure,
     )
+
+    private fun skipConnect(app: AiCfoController) {
+        app.primaryOnboarding()
+        app.primaryOnboarding()
+        app.secondaryOnboarding()
+        assertEquals(Gate.AUTH, app.gate())
+    }
 
     private fun AiCfoController.verifyReady() {
         assertTrue(submitPhone("5555551234"))

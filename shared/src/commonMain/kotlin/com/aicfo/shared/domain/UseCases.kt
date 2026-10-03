@@ -13,6 +13,8 @@ import com.aicfo.shared.model.CoachMove
 import com.aicfo.shared.model.MoveKind
 import com.aicfo.shared.model.copyKey
 import com.aicfo.shared.model.wire
+import com.aicfo.shared.sync.DerivedHome
+import com.aicfo.shared.sync.HomeFigures
 import com.aicfo.shared.sync.SyncLine
 import com.aicfo.shared.sync.SyncedAccount
 import com.aicfo.shared.presentation.AccountGroupModel
@@ -53,34 +55,41 @@ internal object HomeUseCase {
         market: MarketPack,
         copy: CopyResolver,
         sync: SyncLine,
+        bank: DerivedHome?,
     ): HomeModel {
         val todo = resolved
             .filter { it.status == MoveStatusCode.TODO && moveVisible(it.move.kind, market.features) }
             .sortedBy { it.move.rank }
             .take(3)
+        val unlocked = bank != null
         return HomeModel(
             greeting = "Hello, ${MayaStub.profile.firstName}",
             subtitle = MayaStub.HOME_SUBTITLE,
             initials = MayaStub.profile.initials,
             showNotificationDot = notificationsOn,
             savingsLabel = MayaStub.SAVINGS_LABEL,
-            savingsAmount = MoneyFormat.standard(MayaStub.SAVINGS),
-            savingsDelta = copy.text(CopyKey.HOME_DELTA_UP, mapOf("amount" to MoneyFormat.standard(MayaStub.SAVINGS_DELTA))),
+            savingsAmount = moneyOrHidden(bank?.savings),
+            savingsDelta = "",
             savingsUp = true,
             netWorthLabel = MayaStub.NET_WORTH_LABEL,
-            netWorthAmount = MoneyFormat.compact(MayaStub.NET_WORTH),
-            netWorthDelta = copy.text(CopyKey.HOME_NET_DELTA),
+            netWorthAmount = moneyOrHidden(bank?.netWorth, compact = true),
+            netWorthDelta = "",
             netWorthUp = true,
-            runway = copy.text(CopyKey.HOME_RUNWAY),
+            runway = if (unlocked) HomeFigures.FROM_BANK else HomeFigures.WAITING,
             hope = hopeLine(resolved, copy),
             sectionTitle = MayaStub.SECTION_TITLE,
             seeAllLabel = "See all",
             emptyTitle = "You're clear this month",
             emptyBody = "Every open move is done or skipped. A new list lands at the start of next month.",
             snapshot = listOf(
-                HomeAmountModel(MayaStub.NEEDS_LABEL, MoneyFormat.standard(MayaStub.NEEDS), MayaStub.NEEDS_CAPTION, Tone.DEFAULT),
-                HomeAmountModel(MayaStub.WANTS_LABEL, MoneyFormat.standard(MayaStub.WANTS), MayaStub.WANTS_CAPTION, Tone.DEFAULT),
-                HomeAmountModel(MayaStub.SAVE_LABEL, MoneyFormat.standard(MayaStub.TO_SAVE), MayaStub.SAVE_CAPTION, Tone.POSITIVE),
+                HomeAmountModel(MayaStub.NEEDS_LABEL, moneyOrHidden(bank?.needs), MayaStub.NEEDS_CAPTION, Tone.DEFAULT),
+                HomeAmountModel(MayaStub.WANTS_LABEL, moneyOrHidden(bank?.wants), MayaStub.WANTS_CAPTION, Tone.DEFAULT),
+                HomeAmountModel(
+                    MayaStub.SAVE_LABEL,
+                    moneyOrHidden(bank?.toSave),
+                    MayaStub.SAVE_CAPTION,
+                    if ((bank?.toSave?.minor ?: 0L) > 0L) Tone.POSITIVE else Tone.DEFAULT,
+                ),
             ),
             moves = todo.map { row ->
                 HomeMoveModel(
@@ -111,6 +120,11 @@ internal object HomeUseCase {
             MoveStatusCode.DONE -> copy.text(CopyKey.HOPE_DONE, mapOf("amount" to MoneyFormat.standard(yearly)))
             else -> ""
         }
+    }
+
+    private fun moneyOrHidden(money: Money?, compact: Boolean = false): String {
+        if (money == null) return HomeFigures.HIDDEN
+        return if (compact) MoneyFormat.compact(money) else MoneyFormat.standard(money)
     }
 }
 
@@ -193,6 +207,11 @@ internal object AccountsUseCase {
         linkError: String,
         accounts: List<SyncedAccount>,
         sync: SyncLine,
+        linkConfigured: Boolean,
+        unavailableLabel: String,
+        linkNote: String,
+        sampleLink: Boolean,
+        sampleCta: String,
     ): AccountsModel {
         val profile = MayaStub.profile
         val readOnly = copy.text(CopyKey.REG_READ_ONLY)
@@ -220,22 +239,24 @@ internal object AccountsUseCase {
         }
         return AccountsModel(
             title = "Accounts",
-            subtitle = if (linked) {
-                "Connected read-only · ${profile.fullName}"
-            } else {
-                "Nothing linked · ${profile.fullName}"
+            subtitle = when {
+                !linked -> "Nothing linked · ${profile.fullName}"
+                sampleLink -> "Maya sample · not your bank"
+                else -> "Connected read-only · ${profile.fullName}"
             },
             trust = "Read-only access. We never move money or store credentials. You take every action.",
             linked = linked,
             emptyTitle = "No institutions linked",
             emptyBody = "Connections are read-only. Bank passwords are never stored on this device.",
-            emptyCta = "Link read-only sample",
+            emptyCta = if (linkConfigured) "Connect securely" else unavailableLabel,
             linkError = linkError,
             groups = groups,
             freshnessLabel = sync.freshnessLabel,
             syncCode = sync.syncCode,
             syncActionLabel = sync.syncActionLabel,
             syncStale = sync.syncStale,
+            linkNote = linkNote,
+            sampleCta = sampleCta,
         )
     }
 
@@ -262,6 +283,9 @@ internal object OnboardingUseCase {
         market: MarketPack,
         copy: CopyResolver,
         linkError: String,
+        linkConfigured: Boolean,
+        unavailableLabel: String,
+        linkNote: String,
     ): OnboardingModel {
         val empty = OnboardingModel(
             step = step,
@@ -322,8 +346,9 @@ internal object OnboardingUseCase {
                 kicker = "CONNECT ACCOUNTS",
                 title = "See your money\nin one calm place",
                 body = "Link banks, cards, loans, and investments so we can surface this month's moves.",
-                primaryCta = "Connect securely",
+                primaryCta = if (linkConfigured) "Connect securely" else unavailableLabel,
                 secondaryCta = "Skip for now",
+                linkNote = linkNote,
                 badge = copy.text(CopyKey.REG_READ_ONLY),
                 trustTitle = copy.text(CopyKey.REG_NEVER_MOVE),
                 trustBody = copy.text(market.config.disclosureKey),
@@ -336,13 +361,13 @@ internal object OnboardingUseCase {
                 ),
             )
             else -> empty.copy(
-                badge = "30 days free · Pro",
+                badge = "25 days free · Pro",
                 title = "Start your free\nPro trial",
                 body = "Full access to every move this month. No charge today.",
-                primaryCta = "Start free 30-day trial",
+                primaryCta = "Start free 25-day trial",
                 secondaryCta = "Maybe later",
                 sectionLabel = "WHAT'S INCLUDED",
-                footnote = "After 30 days, Pro continues on a paid plan. Cancel before then — no charge.",
+                footnote = "After 25 days, Pro continues on a paid plan. Cancel before then — no charge.",
                 features = listOf(
                     OnboardingCard(
                         "Full moves list",
@@ -377,7 +402,7 @@ internal object OnboardingUseCase {
 
 internal object PaywallUseCase {
     fun build(trialConsumed: Boolean, monthlyLabel: String, yearlyLabel: String): PaywallModel = PaywallModel(
-        title = if (trialConsumed) "Your 30-day Pro trial has ended" else "Finwise Pro",
+        title = if (trialConsumed) "Your 25-day Pro trial has ended" else "Finwise Pro",
         lede = "The monthly action coach stays on Pro. Specific moves, the math, and a next step — not a free dashboard.",
         monthlyPrice = monthlyLabel,
         monthlyPeriod = "/ month",

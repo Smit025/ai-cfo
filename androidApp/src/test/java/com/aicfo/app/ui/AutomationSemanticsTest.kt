@@ -168,8 +168,9 @@ class AutomationSemanticsTest {
             if (showHome.value) RevisingHome(controller) else RevisingAccounts(controller)
         }
         rule.onNodeWithText("Nothing linked · Maya Chen").assertIsDisplayed()
+        rule.onNodeWithText("Connect securely").assertIsDisplayed()
         rule.onNodeWithText("Link read-only sample").performScrollTo().performClick()
-        rule.onNodeWithText("Connected read-only · Maya Chen").assertIsDisplayed()
+        rule.onNodeWithText("Maya sample · not your bank").assertIsDisplayed()
         rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS).assertTextEquals("Updated just now")
         rule.onAllNodesWithTag(AutomationTags.BANK_FRESHNESS_ACTION).assertCountEquals(0)
 
@@ -253,7 +254,8 @@ class AutomationSemanticsTest {
         controller.debugSimulateSyncFailure()
         rule.setContent { AccountsScreen(controller, tick = 0) }
         rule.onNodeWithText("Nothing linked · Maya Chen").assertIsDisplayed()
-        rule.onNodeWithText("Link read-only sample").assertIsDisplayed()
+        rule.onNodeWithText("Connect securely").assertIsDisplayed()
+        rule.onAllNodesWithText("Link read-only sample").assertCountEquals(0)
         rule.onAllNodesWithTag(AutomationTags.BANK_FRESHNESS).assertCountEquals(0)
         rule.onAllNodesWithTag(AutomationTags.BANK_FRESHNESS_ACTION).assertCountEquals(0)
         rule.runOnIdle {
@@ -309,7 +311,11 @@ class AutomationSemanticsTest {
         val controller = debugController()
         repeat(8) {
             if (controller.gate() != Gate.ONBOARDING) return@repeat
-            controller.primaryOnboarding()
+            if (controller.onboarding().step == 2 && controller.onboarding().secondaryCta == "Skip for now") {
+                controller.secondaryOnboarding()
+            } else {
+                controller.primaryOnboarding()
+            }
         }
         assertEquals(Gate.AUTH, controller.gate())
         assertEquals(AuthStep.PHONE, controller.authStep())
@@ -357,7 +363,11 @@ class AutomationSemanticsTest {
     private fun reachMain(controller: AiCfoController) {
         repeat(8) {
             if (controller.gate() != Gate.ONBOARDING) return@repeat
-            controller.primaryOnboarding()
+            if (controller.onboarding().step == 2 && controller.onboarding().secondaryCta == "Skip for now") {
+                controller.secondaryOnboarding()
+            } else {
+                controller.primaryOnboarding()
+            }
         }
         if (controller.gate() == Gate.AUTH) {
             controller.debugSkipPhone()

@@ -103,7 +103,7 @@ struct SettingsView: View {
                     Text("Read-only linking. Bank passwords are never stored.").font(Theme.body(14)).foregroundStyle(Theme.muted)
                     Text("Link tokens stay in the Keychain on this iPhone.").font(Theme.body(14)).foregroundStyle(Theme.muted)
                     Text("Logs redact tokens, passwords, and card numbers.").font(Theme.body(14)).foregroundStyle(Theme.muted)
-                    Text(settings.banksLinked ? "Sample institutions are linked." : "No institutions linked.")
+                    Text(settings.sampleLink ? "Maya sample is linked. It is not your bank." : (settings.banksLinked ? "A read-only bank is linked." : "No institutions linked."))
                         .font(Theme.body(14)).foregroundStyle(Theme.muted)
                 }
                 .padding(16)
@@ -116,7 +116,7 @@ struct SettingsView: View {
                 if settings.qaEnabled {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("QA · trial / paywall").font(Theme.semi(16)).foregroundStyle(Theme.text)
-                        Text("Debug tools for this build. Force the hard paywall, restore the 30-day trial, or simulate a bank that needs reconnect.")
+                        Text("Debug tools for this build. Force the hard paywall, restore the 25-day trial, or simulate a bank that needs reconnect.")
                             .font(Theme.body(13)).foregroundStyle(Theme.muted)
                         PrimaryButton(label: "Show paywall") { model.controller.debugForcePaywall() }
                         SecondaryButton(label: "Restore trial") { model.controller.debugForceTrial() }

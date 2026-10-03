@@ -111,13 +111,15 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(label).font(Theme.semi(13)).foregroundStyle(Theme.muted)
             Text(amount).font(Theme.title(28)).foregroundStyle(Theme.text)
-            Text(delta)
-                .font(Theme.semi(12))
-                .foregroundStyle(up ? Theme.success : Theme.muted)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(up ? Theme.successSoft : Theme.chip, in: Capsule())
-                .padding(.top, 4)
+            if !delta.isEmpty {
+                Text(delta)
+                    .font(Theme.semi(12))
+                    .foregroundStyle(up ? Theme.success : Theme.muted)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(up ? Theme.successSoft : Theme.chip, in: Capsule())
+                    .padding(.top, 4)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
