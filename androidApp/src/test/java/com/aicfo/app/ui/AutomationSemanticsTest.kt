@@ -9,12 +9,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertCountEquals
-import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -163,38 +163,44 @@ class AutomationSemanticsTest {
     fun linkReadOnlySampleShowsFreshnessOnAccountsAndHome() {
         val controller = debugController()
         assertFalse(controller.accounts().linked)
-        rule.setContent { RevisingAccounts(controller) }
+        val showHome = mutableStateOf(false)
+        rule.setContent {
+            if (showHome.value) RevisingHome(controller) else RevisingAccounts(controller)
+        }
         rule.onNodeWithText("Nothing linked · Maya Chen").assertIsDisplayed()
         rule.onNodeWithText("Link read-only sample").performScrollTo().performClick()
         rule.onNodeWithText("Connected read-only · Maya Chen").assertIsDisplayed()
         rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS).assertTextEquals("Updated just now")
-        rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS_ACTION).assertDoesNotExist()
+        rule.onAllNodesWithTag(AutomationTags.BANK_FRESHNESS_ACTION).assertCountEquals(0)
 
-        rule.setContent { RevisingHome(controller) }
+        rule.runOnIdle { showHome.value = true }
         rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS).assertTextEquals("Updated just now")
-        rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS_ACTION).assertDoesNotExist()
+        rule.onAllNodesWithTag(AutomationTags.BANK_FRESHNESS_ACTION).assertCountEquals(0)
     }
 
     @Test
     fun simulateReconnectWithoutAPriorLinkShowsReconnect() {
         val controller = debugController()
         assertFalse(controller.accounts().linked)
+        val showHome = mutableStateOf(false)
         rule.runOnIdle { controller.debugSimulateNeedsReauth() }
-        rule.setContent { RevisingAccounts(controller) }
+        rule.setContent {
+            if (showHome.value) RevisingHome(controller) else RevisingAccounts(controller)
+        }
         rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS)
             .assertTextEquals("Reconnect to refresh balances. Last update just now.")
         rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS_ACTION)
             .assertTextEquals("Reconnect")
             .assertHasClickAction()
 
-        rule.setContent { RevisingHome(controller) }
+        rule.runOnIdle { showHome.value = true }
         rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS)
             .assertTextEquals("Reconnect to refresh balances. Last update just now.")
         rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS_ACTION)
             .assertTextEquals("Reconnect")
             .performClick()
         rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS).assertTextEquals("Updated just now")
-        rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS_ACTION).assertDoesNotExist()
+        rule.onAllNodesWithTag(AutomationTags.BANK_FRESHNESS_ACTION).assertCountEquals(0)
         rule.runOnIdle {
             assertTrue(controller.syncStatus() is SyncStatus.Success)
             assertTrue(controller.accounts().linked)
@@ -205,23 +211,26 @@ class AutomationSemanticsTest {
     fun simulateFailureWithoutAPriorLinkShowsTryAgain() {
         val controller = debugController()
         assertFalse(controller.accounts().linked)
+        val showHome = mutableStateOf(true)
         rule.runOnIdle { controller.debugSimulateSyncFailure() }
-        rule.setContent { RevisingHome(controller) }
+        rule.setContent {
+            if (showHome.value) RevisingHome(controller) else RevisingAccounts(controller)
+        }
         rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS)
             .assertTextEquals("Couldn't refresh. Last update just now.")
         rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS_ACTION)
             .assertTextEquals("Try again")
             .assertHasClickAction()
 
-        rule.setContent { RevisingAccounts(controller) }
-        rule.onNodeWithText("Nothing linked · Maya Chen").assertDoesNotExist()
+        rule.runOnIdle { showHome.value = false }
+        rule.onAllNodesWithText("Nothing linked · Maya Chen").assertCountEquals(0)
         rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS)
             .assertTextEquals("Couldn't refresh. Last update just now.")
         rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS_ACTION)
             .assertTextEquals("Try again")
             .performClick()
         rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS).assertTextEquals("Updated just now")
-        rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS_ACTION).assertDoesNotExist()
+        rule.onAllNodesWithTag(AutomationTags.BANK_FRESHNESS_ACTION).assertCountEquals(0)
         rule.runOnIdle {
             assertTrue(controller.syncStatus() is SyncStatus.Success)
         }
@@ -245,8 +254,8 @@ class AutomationSemanticsTest {
         rule.setContent { AccountsScreen(controller, tick = 0) }
         rule.onNodeWithText("Nothing linked · Maya Chen").assertIsDisplayed()
         rule.onNodeWithText("Link read-only sample").assertIsDisplayed()
-        rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS).assertDoesNotExist()
-        rule.onNodeWithTag(AutomationTags.BANK_FRESHNESS_ACTION).assertDoesNotExist()
+        rule.onAllNodesWithTag(AutomationTags.BANK_FRESHNESS).assertCountEquals(0)
+        rule.onAllNodesWithTag(AutomationTags.BANK_FRESHNESS_ACTION).assertCountEquals(0)
         rule.runOnIdle {
             assertTrue(controller.syncStatus() is SyncStatus.Idle)
             assertFalse(controller.accounts().linked)
