@@ -60,7 +60,11 @@ private val Hairline = Color(0xFFE6E8EE)
  * welcome, actions-not-charts, read-only connect, 30-day Pro trial.
  */
 @Composable
-fun OnboardingScreen(controller: AiCfoController, tick: Int) {
+fun OnboardingScreen(
+    controller: AiCfoController,
+    tick: Int,
+    onConnect: () -> Unit = { controller.requestReadOnlyLink() },
+) {
     val model = remember(tick) { controller.onboarding() }
     Box(Modifier.fillMaxSize().statusBarsPadding(), contentAlignment = Alignment.TopCenter) {
         Column(
@@ -101,7 +105,12 @@ fun OnboardingScreen(controller: AiCfoController, tick: Int) {
                     modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                 )
             }
-            PrimaryButton(label = model.primaryCta, onClick = { controller.primaryOnboarding() })
+            PrimaryButton(
+                label = model.primaryCta,
+                onClick = {
+                    if (model.step == 2 && !model.banksLinked) onConnect() else controller.primaryOnboarding()
+                },
+            )
             when (model.step) {
                 2 -> if (model.secondaryCta.isNotEmpty()) {
                     Text(
@@ -291,6 +300,10 @@ private fun ConnectStep(model: OnboardingModel) {
         Text(model.trustTitle, color = AiColors.Text, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, lineHeight = 22.sp)
         Spacer(Modifier.height(6.dp))
         Text(model.trustBody, color = AiColors.Muted, fontSize = 14.sp, lineHeight = 20.sp)
+        if (model.linkNote.isNotEmpty()) {
+            Spacer(Modifier.height(10.dp))
+            Text(model.linkNote, color = AiColors.Muted, fontSize = 13.sp, lineHeight = 18.sp)
+        }
     }
     Spacer(Modifier.height(22.dp))
     SectionLabel(model.sectionLabel)

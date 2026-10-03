@@ -2,7 +2,7 @@
 
 Finwise links accounts **read-only**. The product never moves money and never charges a linked card. This note is the quality bar for that link, and the seam a live Plaid source plugs into.
 
-The Maya stub is still the data. The sync hooks around it are real.
+Android can open a read-only Plaid **sandbox** Link session. The Maya sample remains a debug QA path. It does not unlock Home figures. See **Plaid sandbox** below.
 
 ## Quality bar
 
@@ -33,19 +33,31 @@ The freshness line uses testTag `bank_freshness`. When there is an action, **Try
 
 ## QA order
 
-An unlinked Accounts screen stays on “Nothing linked” and **Link read-only sample**. Cold start does not auto-link, in debug or release. Freshness, Reconnect, and Try again render only after the sample is linked. Assert them in this order:
+An unlinked Accounts screen stays on “Nothing linked” and **Connect securely**. Cold start does not auto-link, in debug or release. Debug builds also show **Link read-only sample**. That sample is not the default path. Freshness, Reconnect, and Try again render only after something is linked. Assert them in this order:
 
 1. Finish onboarding. **Skip for now** leaves Accounts unlinked. That empty state is expected until the next step.
-2. Link the sample, either by tapping **Link read-only sample** on Accounts, or by using a debug simulate action. Simulate links the stub itself, then overlays a stale state. You do not need a prior tap on Link.
-3. After a real link, Home’s wealth strip and Accounts show `bank_freshness` with a relative line such as “Updated just now”.
+2. For QA without Plaid keys, link the sample from Accounts → **Link read-only sample**, or use a debug simulate action. Simulate links the stub itself, then overlays a stale state. You do not need a prior tap on Link. The sample does not fill Home’s dollar figures.
+3. After a link, Home’s wealth strip and Accounts show `bank_freshness` with a relative line such as “Updated just now”. Home dollar figures stay “—” until a Plaid sandbox sync succeeds.
 4. Settings → **Simulate bank reconnect** (`qa_simulate_reconnect`) shows NeedsReauth: “Reconnect to refresh balances” and a tappable **Reconnect** (`bank_freshness_action`) on Home and Accounts. Reconnect clears the flag and refreshes.
 5. Settings → **Simulate sync failure** (`qa_simulate_failure`) shows Failed and **Try again** (`bank_freshness_action`) the same way. The line does not stay “Updated …” or the empty unlinked copy. Try again refreshes.
 
-Release builds ignore both simulate actions. They do not link and they do not change a successful sync.
+Release builds ignore both simulate actions and **Link read-only sample**. They do not link and they do not change a successful sync. They also do not embed Plaid credentials.
 
 Prefs keys: `last_synced_at`, `sync_state`, `sync_error`, `sync_needs_reauth`, `synced_accounts`, `synced_transactions`.
 
-Home’s dollar figures stay the locked October board. The freshness line reports the bank link. It does not recompute savings or net worth from the stub balances.
+Home keeps the same layout: savings, net worth, needs / wants / to save, and the ranked move cards. Dollar figures on that strip stay “—” until one successful sync from the Plaid source (`bank_link_kind` = `plaid`, `real_bank_sync` = true). A later failed or stale sync keeps those last figures and marks them not current. Cold start does not invent balances. The Maya sample never sets `real_bank_sync`. Ranked move cards stay the October coach plan.
+
+## Plaid sandbox
+
+Android Connect opens Plaid Link against `https://sandbox.plaid.com` only. Products requested: `transactions`. No transfer, payment, or auth product. The public token is exchanged in memory. The access token is stored with the Android Keystore vault (`plaid.access_token`). It is not written to `AndroidLocalStore`, logs, or git.
+
+Credentials are not in the repo. Copy `local.properties.example` to `local.properties` (gitignored) and set `PLAID_CLIENT_ID` and `PLAID_SECRET` from the Plaid **Sandbox** secret. In the dashboard, allow Android package `com.aicfo.app`. Rebuild the **debug** app. Release builds compile those fields as empty, so a release APK cannot open Link and does not contain the secret.
+
+If the values are blank, Connect says **Plaid is not configured** and does not fall back to the Maya sample.
+
+After a successful sandbox sync, Home savings is the sum of savings accounts, net worth is cash plus investments minus cards and loans, and needs / wants / left-to-save come from this month’s categorized transactions. Accounts lists the linked rows with a read-only badge.
+
+iOS shares the controller but reports **Not available on iOS yet**. This environment does not compile the iOS app.
 
 ## Swapping the stub for Plaid
 
@@ -71,12 +83,12 @@ class PlaidBankSource(
 }
 ```
 
-Pass that source to the `AiCfoController` constructor that takes a `BankLinkSource`. The state machine, the ledger, and both UIs stay as they are.
+`PlaidBankSource` in `androidApp` is that source. The state machine and the ledger stay in `shared`. Android passes it to the `AiCfoController` constructor that takes a `BankLinkSource`.
 
-When Plaid Link update-mode exists, present it from the **Reconnect** button, then call `reconnectBank()`. Today that button only clears the flag and refreshes, which is the right behavior for the stub.
+**Reconnect** on a Plaid item opens Link update mode, then `reconnectBank()`. The Maya sample still only clears the flag and refreshes.
 
-Prefs are enough for Maya’s three transactions. A live item with a long history should move `TransactionLedger` to a database and keep the provider id as the primary key.
+Prefs are enough for the sample’s three transactions. A long Plaid history should move `TransactionLedger` to a database and keep the provider id as the primary key.
 
 ## Not in this change
 
-No Plaid SDK, no Link phone / OTP flow, and no paywall work. The sample institutions are still Maya Chen’s October 2026 accounts.
+No phone OTP, device unlock, paywall, real SMS, monthly savings email, or Play billing work. iOS Link is not implemented. Production Plaid is refused.

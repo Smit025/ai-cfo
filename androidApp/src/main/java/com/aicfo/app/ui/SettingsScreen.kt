@@ -150,7 +150,11 @@ fun SettingsScreen(controller: AiCfoController, tick: Int) {
             Text("Link tokens are encrypted in the Android Keystore.", color = AiColors.Muted, fontSize = 14.sp)
             Text("Logs redact tokens, passwords, and card numbers.", color = AiColors.Muted, fontSize = 14.sp)
             Text(
-                if (model.banksLinked) "Sample institutions are linked." else "No institutions linked.",
+                when {
+                    model.sampleLink -> "Maya sample is linked. It is not your bank."
+                    model.banksLinked -> "A read-only bank is linked."
+                    else -> "No institutions linked."
+                },
                 color = AiColors.Muted,
                 fontSize = 14.sp,
             )

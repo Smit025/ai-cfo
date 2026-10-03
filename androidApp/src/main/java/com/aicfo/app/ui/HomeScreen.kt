@@ -52,6 +52,7 @@ fun HomeScreen(
     controller: AiCfoController,
     tick: Int,
     wide: Boolean,
+    onSync: (String) -> Unit = { performSyncAction(controller, it) },
     onOpen: (String) -> Unit,
 ) {
     val freshnessTick = rememberFreshnessTick()
@@ -74,7 +75,7 @@ fun HomeScreen(
             Spacer(Modifier.height(12.dp))
             HomeHeader(home)
             Spacer(Modifier.height(18.dp))
-            WealthStrip(home) { performSyncAction(controller, home.syncCode) }
+            WealthStrip(home) { onSync(home.syncCode) }
             if (home.hope.isNotEmpty()) {
                 Spacer(Modifier.height(12.dp))
                 HopeLine(home.hope)
@@ -189,8 +190,10 @@ private fun WealthColumn(label: String, amount: String, delta: String, up: Boole
         Text(label, color = AiColors.Muted, fontSize = 13.sp, fontWeight = FontWeight.Medium)
         Spacer(Modifier.height(4.dp))
         Text(amount, color = AiColors.Text, fontSize = 28.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(8.dp))
-        DeltaPill(delta, up)
+        if (delta.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            DeltaPill(delta, up)
+        }
     }
 }
 

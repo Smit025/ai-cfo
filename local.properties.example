@@ -1,2 +1,9 @@
 ## Copy to local.properties (gitignored) or export ANDROID_HOME.
 sdk.dir=/path/to/Android/sdk
+
+## Plaid sandbox only. Never commit real values. Leave blank to compile;
+## Link stays closed until a debug rebuild sees both values.
+## Use the Sandbox secret from the Plaid dashboard, not Production or Development.
+## Dashboard → Developers → API → Allowed Android package names → com.aicfo.app
+# PLAID_CLIENT_ID=
+# PLAID_SECRET=

@@ -3,6 +3,7 @@
 build/
 **/build/
 local.properties
+# Plaid sandbox secrets belong in local.properties, not in the repo.
 .idea/
 *.iml
 .DS_Store

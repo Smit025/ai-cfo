@@ -1,6 +1,7 @@
 package com.aicfo.app.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,7 +39,17 @@ import com.aicfo.shared.sync.SyncTrigger
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AccountsScreen(controller: AiCfoController, tick: Int) {
+fun AccountsScreen(
+    controller: AiCfoController,
+    tick: Int,
+    onConnect: () -> Unit = { controller.requestReadOnlyLink() },
+    onSync: (String) -> Unit = { code ->
+        when (code) {
+            SyncCode.NEEDS_REAUTH -> controller.reconnectBank()
+            SyncCode.FAILED -> controller.refreshAccounts(SyncTrigger.Manual)
+        }
+    },
+) {
     val freshnessTick = rememberFreshnessTick()
     val model = remember(tick, freshnessTick) { controller.accounts() }
     PullToRefreshBox(
@@ -65,12 +76,7 @@ fun AccountsScreen(controller: AiCfoController, tick: Int) {
                     label = model.freshnessLabel,
                     action = model.syncActionLabel,
                     code = model.syncCode,
-                    onAction = {
-                        when (model.syncCode) {
-                            SyncCode.NEEDS_REAUTH -> controller.reconnectBank()
-                            SyncCode.FAILED -> controller.refreshAccounts(SyncTrigger.Manual)
-                        }
-                    },
+                    onAction = { onSync(model.syncCode) },
                 )
             }
             Spacer(Modifier.height(14.dp))
@@ -94,8 +100,22 @@ fun AccountsScreen(controller: AiCfoController, tick: Int) {
                         Spacer(Modifier.height(10.dp))
                         Text(model.linkError, color = AiColors.Danger, fontSize = 14.sp, lineHeight = 20.sp)
                     }
+                    if (model.linkNote.isNotEmpty()) {
+                        Spacer(Modifier.height(10.dp))
+                        Text(model.linkNote, color = AiColors.Muted, fontSize = 13.sp, lineHeight = 18.sp)
+                    }
                     Spacer(Modifier.height(14.dp))
-                    PrimaryButton(model.emptyCta) { controller.connectReadOnlyStub() }
+                    PrimaryButton(model.emptyCta, onClick = onConnect)
+                    if (model.sampleCta.isNotEmpty()) {
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            model.sampleCta,
+                            color = AiColors.Muted,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp,
+                            modifier = Modifier.clickable { controller.connectReadOnlyStub() },
+                        )
+                    }
                 }
             }
         } else {

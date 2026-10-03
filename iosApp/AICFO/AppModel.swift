@@ -48,6 +48,11 @@ final class AppModel: ObservableObject {
             Task { @MainActor in self?.revision += 1 }
         }
         controller.addObserver(observer: bridge)
+        controller.setBankLinkAvailability(
+            configured: false,
+            unavailableLabel: "Not available on iOS yet",
+            note: "Plaid Link for iOS is not in this build. It needs a Mac and the Plaid iOS SDK."
+        )
         refreshHardware()
     }
 

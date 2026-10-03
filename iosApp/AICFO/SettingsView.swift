@@ -103,7 +103,7 @@ struct SettingsView: View {
                     Text("Read-only linking. Bank passwords are never stored.").font(Theme.body(14)).foregroundStyle(Theme.muted)
                     Text("Link tokens stay in the Keychain on this iPhone.").font(Theme.body(14)).foregroundStyle(Theme.muted)
                     Text("Logs redact tokens, passwords, and card numbers.").font(Theme.body(14)).foregroundStyle(Theme.muted)
-                    Text(settings.banksLinked ? "Sample institutions are linked." : "No institutions linked.")
+                    Text(settings.sampleLink ? "Maya sample is linked. It is not your bank." : (settings.banksLinked ? "A read-only bank is linked." : "No institutions linked."))
                         .font(Theme.body(14)).foregroundStyle(Theme.muted)
                 }
                 .padding(16)

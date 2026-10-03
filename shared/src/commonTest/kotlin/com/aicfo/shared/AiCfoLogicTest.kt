@@ -126,21 +126,23 @@ class AiCfoLogicTest {
         assertEquals("gympass", home.moveAt(0).id)
         assertEquals("capital-one", home.moveAt(1).id)
         assertEquals("idle-cash", home.moveAt(2).id)
-        assertEquals("\$8,420", home.savingsAmount)
-        assertEquals("\$42.1k", home.netWorthAmount)
-        assertTrue(home.savingsUp)
-        assertTrue(home.netWorthUp)
-        assertEquals("47 days runway · quietly building", home.runway)
+        assertEquals("—", home.savingsAmount)
+        assertEquals("—", home.netWorthAmount)
+        assertEquals("", home.savingsDelta)
+        assertEquals("", home.netWorthDelta)
+        assertEquals("Balances show after a bank sync", home.runway)
+        assertFalse(home.savingsAmount.contains("\$"))
         assertEquals(
             "If unused Gympass stayed cancelled this year, you'd keep ~\$564 more",
             home.hope,
         )
         assertEquals(3, home.snapshotCount())
         assertEquals("Needs", home.snapshotAt(0).label)
-        assertEquals("\$2,840", home.snapshotAt(0).amount)
+        assertEquals("—", home.snapshotAt(0).amount)
         assertEquals("Wants", home.snapshotAt(1).label)
         assertEquals("To save", home.snapshotAt(2).label)
-        assertEquals("\$890", home.snapshotAt(2).amount)
+        assertEquals("—", home.snapshotAt(2).amount)
+        assertEquals("rent, groceries...", home.snapshotAt(0).caption)
         assertEquals("Last check-in 86 days ago — paying for nothing.", home.moveAt(0).body)
     }
 
@@ -174,7 +176,11 @@ class AiCfoLogicTest {
         assertTrue(connect.canAdvance)
         assertEquals("Connect securely", connect.primaryCta)
         assertEquals("Skip for now", connect.secondaryCta)
+        app.primaryOnboarding()
+        assertEquals(2, app.onboarding().step)
+        assertFalse(app.accounts().linked)
         assertTrue(app.connectReadOnlyStub())
+        assertEquals("—", app.home().savingsAmount)
         val token = vault.read("institution.chase-checking")
         assertEquals("link_stub_chase-checking", token)
         assertTrue(LinkPolicy.accepts(token!!))
@@ -227,25 +233,33 @@ class AiCfoLogicTest {
     }
 
     @Test
-    fun connectSecurelyLinksThenContinues() {
+    fun connectSecurelyDoesNotLinkTheSample() {
         val vault = MemoryTokenVault()
         val app = AiCfoController(vault, MemoryLocalStore(), MutableClock(10L))
         app.advanceOnboarding()
         app.advanceOnboarding()
         app.primaryOnboarding()
-        assertEquals(Gate.AUTH, app.gate())
+        assertEquals(Gate.ONBOARDING, app.gate())
         assertEquals(2, app.onboarding().step)
-        assertEquals("link_stub_chase-checking", vault.read("institution.chase-checking"))
-        assertTrue(app.accounts().linked)
+        assertNull(vault.read("institution.chase-checking"))
+        assertFalse(app.accounts().linked)
+        assertTrue(app.onboarding().linkError.contains("Couldn't open Plaid Link"))
+        app.secondaryOnboarding()
+        assertEquals(Gate.AUTH, app.gate())
+        assertFalse(app.accounts().linked)
     }
 
     @Test
     fun logsRedactTokensPasswordsAndCardNumbers() {
         val cleaned = SafeLog.redact(
-            "saved link_stub_chase-checking password=hunter2 4111111111111111 sess_1700_1234 otp 000000",
+            "saved link_stub_chase-checking password=hunter2 4111111111111111 sess_1700_1234 otp 000000 access-sandbox-de3ce8ef-33f8-452c-a685-8671031fc0f6",
         )
         assertFalse(cleaned.contains("hunter2"))
         assertFalse(cleaned.contains("link_stub_chase-checking"))
+        assertFalse(cleaned.contains("de3ce8ef"))
+        assertFalse(LinkPolicy.accepts("access-production-de3ce8ef-33f8-452c-a685-8671031fc0f6"))
+        assertFalse(LinkPolicy.accepts("access-development-de3ce8ef-33f8-452c"))
+        assertTrue(LinkPolicy.accepts("access-sandbox-de3ce8ef-33f8-452c-a685-8671031fc0f6"))
         assertFalse(cleaned.contains("4111111111111111"))
         assertFalse(cleaned.contains("sess_1700_1234"))
         assertFalse(cleaned.contains("000000"))
@@ -347,6 +361,9 @@ class AiCfoLogicTest {
         app.primaryOnboarding()
         assertEquals(2, app.onboarding().step)
         assertFalse(app.accounts().linked)
+        assertFalse(app.connectReadOnlyStub())
+        assertEquals(2, app.onboarding().step)
+        assertFalse(app.accounts().linked)
         assertTrue(app.onboarding().linkError.contains("Nothing was saved"))
         assertTrue(app.accounts().linkError.contains("Nothing was saved"))
         assertTrue(vault.cleared)
@@ -399,7 +416,11 @@ class AiCfoLogicTest {
     private fun finishOnboarding(app: AiCfoController) {
         repeat(8) {
             if (app.gate() != Gate.ONBOARDING) return@repeat
-            app.primaryOnboarding()
+            if (app.onboarding().step == 2 && app.onboarding().secondaryCta == "Skip for now") {
+                app.secondaryOnboarding()
+            } else {
+                app.primaryOnboarding()
+            }
         }
         if (!app.hasSession()) app.testingSeedSession()
         repeat(4) {

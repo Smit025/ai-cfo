@@ -11,13 +11,16 @@ import com.aicfo.shared.security.MemoryLocalStore
 import com.aicfo.shared.security.MemorySecureStore
 import com.aicfo.shared.security.MemoryTokenVault
 import com.aicfo.shared.security.TokenVault
+import com.aicfo.shared.sync.AccountRole
 import com.aicfo.shared.sync.BankFetch
+import com.aicfo.shared.sync.BankLinkId
 import com.aicfo.shared.sync.BankLinkSource
 import com.aicfo.shared.sync.MayaStubBankSource
 import com.aicfo.shared.sync.ProviderTransaction
 import com.aicfo.shared.sync.SyncCode
 import com.aicfo.shared.sync.SyncStatus
 import com.aicfo.shared.sync.SyncTrigger
+import com.aicfo.shared.sync.SyncedAccount
 import com.aicfo.shared.sync.TransactionLedger
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -282,7 +285,8 @@ class BankSyncTest {
         )
         assertEquals(app.home().freshnessLabel, app.accounts().freshnessLabel)
         assertFalse(app.home().freshnessLabel.startsWith("Updated"))
-        assertEquals("Connected read-only · Maya Chen", app.accounts().subtitle)
+        assertEquals("Maya sample · not your bank", app.accounts().subtitle)
+        assertEquals("—", app.home().savingsAmount)
 
         app.reconnectBank()
         assertTrue(app.syncStatus() is SyncStatus.Success)
@@ -395,6 +399,102 @@ class BankSyncTest {
     }
 
     @Test
+    fun coldStartDoesNotInventBalancesBeforeAPlaidSync() {
+        val app = linkedApp(ManualClock(10L), linked = false)
+        app.refreshAccounts(SyncTrigger.ColdStart)
+        assertEquals(0, app.accounts().groupCount())
+        assertEquals("—", app.home().savingsAmount)
+        assertEquals("—", app.home().netWorthAmount)
+        assertEquals("—", app.home().snapshotAt(0).amount)
+        assertEquals("gympass", app.home().moveAt(0).id)
+    }
+
+    @Test
+    fun plaidSuccessUnlocksHomeFiguresAndAFailureKeepsThemStale() {
+        val clock = ManualClock(1_760_544_000_000L)
+        val store = MemoryLocalStore()
+        val savings = synced("sav", "Plaid Savings", 100_000, AccountRole.SAVINGS, "CASH")
+        val checking = synced("chk", "Plaid Checking", 50_000, AccountRole.CASH, "CASH")
+        val card = synced("card", "Plaid Credit Card", 20_000, AccountRole.CREDIT, "CARDS_AND_LOANS")
+        val source = PlaidFakeSource(
+            BankFetch.Ok(
+                accounts = listOf(savings, checking, card),
+                transactions = listOf(
+                    tx("rent", -2_500, "Rent", "RENT_AND_UTILITIES", clock.now),
+                    tx("coffee", -1_800, "Coffee", "FOOD_AND_DRINK", clock.now),
+                    tx("pay", 50_000, "Payroll", "INCOME", clock.now),
+                ),
+            ),
+        )
+        val app = linkedApp(clock, store, source)
+        assertEquals("—", app.home().savingsAmount)
+        app.refreshAccounts(SyncTrigger.ColdStart)
+        assertEquals("\$1,000", app.home().savingsAmount)
+        assertEquals("\$1,300", app.home().netWorthAmount)
+        assertEquals("\$25", app.home().snapshotAt(0).amount)
+        assertEquals("\$18", app.home().snapshotAt(1).amount)
+        assertEquals("\$457", app.home().snapshotAt(2).amount)
+        assertEquals("From your linked accounts", app.home().runway)
+        assertEquals("Updated just now", app.home().freshnessLabel)
+        assertFalse(app.home().syncStale)
+        assertEquals("gympass", app.home().moveAt(0).id)
+        assertEquals("true", store.read("real_bank_sync"))
+        assertEquals(BankLinkId.PLAID, store.read("bank_link_kind"))
+
+        source.next = BankFetch.Unavailable("down")
+        app.refreshAccounts(SyncTrigger.Foreground)
+        assertEquals("\$1,000", app.home().savingsAmount)
+        assertEquals("\$1,300", app.home().netWorthAmount)
+        assertEquals("\$457", app.home().snapshotAt(2).amount)
+        assertTrue(app.home().syncStale)
+        assertTrue(app.accounts().syncStale)
+        assertEquals("Try again", app.home().syncActionLabel)
+        assertFalse(app.home().freshnessLabel.startsWith("Updated"))
+        assertTrue(app.home().freshnessLabel.contains("aren't current") || app.home().freshnessLabel.contains("Last update"))
+
+        val restarted = AiCfoController(
+            MemoryTokenVault(),
+            store,
+            clock,
+            Markets.unitedStates(),
+            EmptyLocalStrings,
+            true,
+            source,
+        )
+        assertEquals("\$1,000", restarted.home().savingsAmount)
+        assertEquals("\$1,300", restarted.home().netWorthAmount)
+        assertTrue(restarted.syncStatus() is SyncStatus.Failed)
+    }
+
+    @Test
+    fun mayaSampleAndReleaseDebugActionsDoNotUnlockHomeFigures() {
+        val debug = linkedApp(ManualClock(10L), linked = false)
+        assertTrue(debug.connectReadOnlyStub())
+        assertTrue(debug.accounts().groupCount() > 0)
+        assertEquals("—", debug.home().savingsAmount)
+        assertEquals("—", debug.home().netWorthAmount)
+        debug.refreshAccounts(SyncTrigger.Manual)
+        assertEquals("—", debug.home().savingsAmount)
+
+        val store = MemoryLocalStore()
+        val release = AiCfoController(
+            MemoryTokenVault(),
+            store,
+            ManualClock(10L),
+            Markets.unitedStates(),
+            EmptyLocalStrings,
+            false,
+            MemorySecureStore(),
+        )
+        assertFalse(release.connectReadOnlyStub())
+        release.debugSimulateNeedsReauth()
+        release.debugSimulateSyncFailure()
+        assertFalse(release.accounts().linked)
+        assertEquals("—", release.home().savingsAmount)
+        assertNull(store.read("real_bank_sync"))
+    }
+
+    @Test
     fun stubSourceIsReadOnly() {
         assertTrue(MayaStubBankSource().readOnly)
         assertEquals("maya-stub", MayaStubBankSource.ID)
@@ -423,14 +523,41 @@ private class ManualClock(var now: Long) : AppClock {
     override fun nowEpochMs(): Long = now
 }
 
-private fun tx(id: String, amount: Long, name: String) = ProviderTransaction(
+private fun tx(
+    id: String,
+    amount: Long,
+    name: String,
+    category: String = "",
+    postedAtEpochMs: Long = 1L,
+) = ProviderTransaction(
     providerTransactionId = id,
     accountId = "chase-checking",
     amountMinor = amount,
     currency = "USD",
-    postedAtEpochMs = 1L,
+    postedAtEpochMs = postedAtEpochMs,
     name = name,
+    category = category,
 )
+
+private fun synced(id: String, name: String, minor: Long, role: String, group: String) = SyncedAccount(
+    id = id,
+    name = name,
+    maskLine = "··0000",
+    balanceMinor = minor,
+    currency = "USD",
+    group = group,
+    initials = "PL",
+    colorHex = "#2563EB",
+    role = role,
+)
+
+private class PlaidFakeSource(var next: BankFetch) : BankLinkSource {
+    override val id: String = BankLinkId.PLAID
+    override val readOnly: Boolean = true
+    override fun fetch(nowMs: Long, deliver: (BankFetch) -> Unit) {
+        deliver(next)
+    }
+}
 
 private class ScriptedSource(var next: BankFetch) : BankLinkSource {
     var fetches: Int = 0

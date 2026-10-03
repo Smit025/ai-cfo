@@ -1,7 +1,35 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+}
+
+/**
+ * Sandbox credentials from gitignored local.properties or the environment.
+ * Blank is a valid build: Link stays closed. Values are escaped and never printed.
+ * Release builds do not embed them.
+ */
+fun plaidBuildConfig(name: String): String {
+    val local = Properties()
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use { local.load(it) }
+    val raw = (local.getProperty(name) ?: System.getenv(name) ?: "")
+        .replace("\r", "")
+        .replace("\n", "")
+        .trim()
+    val escaped = buildString {
+        for (ch in raw) {
+            when (ch) {
+                '\\' -> append("\\\\")
+                '"' -> append("\\\"")
+                '$' -> append("\${'$'}")
+                else -> append(ch)
+            }
+        }
+    }
+    return "\"$escaped\""
 }
 
 android {
@@ -17,6 +45,10 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField("String", "PLAID_CLIENT_ID", plaidBuildConfig("PLAID_CLIENT_ID"))
+            buildConfigField("String", "PLAID_SECRET", plaidBuildConfig("PLAID_SECRET"))
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
@@ -25,6 +57,9 @@ android {
             )
             // Scaffold only — replace with an upload keystore before Play Console.
             signingConfig = signingConfigs.getByName("debug")
+            // Sandbox secrets stay out of release binaries.
+            buildConfigField("String", "PLAID_CLIENT_ID", "\"\"")
+            buildConfigField("String", "PLAID_SECRET", "\"\"")
         }
     }
 
@@ -69,6 +104,7 @@ dependencies {
     implementation(libs.lifecycle.viewmodel.compose)
     implementation(libs.biometric)
     implementation(libs.fragment)
+    implementation(libs.plaid.link)
     implementation(libs.compose.ui.tooling.preview)
     debugImplementation(libs.compose.ui.tooling)
     debugImplementation(platform(libs.compose.bom))
