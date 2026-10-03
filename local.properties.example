@@ -1,2 +1,8 @@
 ## Copy to local.properties (gitignored) or export ANDROID_HOME.
 sdk.dir=/path/to/Android/sdk
+
+## Plaid sandbox. Leave the id and secret blank to show "Plaid is not configured".
+## Do not commit real values. See docs/SYNC.md.
+PLAID_CLIENT_ID=
+PLAID_SECRET=
+PLAID_ENV=sandbox

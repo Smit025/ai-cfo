@@ -147,10 +147,14 @@ fun SettingsScreen(controller: AiCfoController, tick: Int) {
         Column(Modifier.fillMaxWidth().softCard().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Privacy", color = AiColors.Text, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
             Text("Read-only linking. Bank passwords are never stored.", color = AiColors.Muted, fontSize = 14.sp)
-            Text("Link tokens are encrypted in the Android Keystore.", color = AiColors.Muted, fontSize = 14.sp)
+            Text("Access tokens are encrypted in the Android Keystore.", color = AiColors.Muted, fontSize = 14.sp)
             Text("Logs redact tokens, passwords, and card numbers.", color = AiColors.Muted, fontSize = 14.sp)
             Text(
-                if (model.banksLinked) "Sample institutions are linked." else "No institutions linked.",
+                when {
+                    !model.banksLinked -> "No institutions linked."
+                    model.sampleLink -> "Maya sample accounts are linked. This is debug data, not your bank."
+                    else -> "A read-only bank is linked."
+                },
                 color = AiColors.Muted,
                 fontSize = 14.sp,
             )
@@ -196,6 +200,15 @@ fun SettingsScreen(controller: AiCfoController, tick: Int) {
                 QaAction("Simulate sync failure", AutomationTags.QA_SIMULATE_FAILURE) {
                     controller.debugSimulateSyncFailure()
                 }
+                QaAction("Link Maya sample", AutomationTags.QA_LINK_MAYA_SAMPLE) {
+                    controller.connectReadOnlyStub()
+                }
+                Text(
+                    "Link Maya sample uses October demo accounts. It is not your bank.",
+                    color = AiColors.Muted,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                )
             }
         }
     }

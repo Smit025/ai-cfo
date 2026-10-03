@@ -1,0 +1,187 @@
+package com.aicfo.app.plaid
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import com.aicfo.shared.domain.AiCfoController
+import com.aicfo.shared.security.LocalStore
+import com.aicfo.shared.security.SafeLog
+import com.aicfo.shared.security.TokenVault
+import com.aicfo.shared.sync.SyncCode
+import com.aicfo.shared.sync.SyncTrigger
+import java.util.UUID
+import java.util.concurrent.Executor
+
+/**
+ * Opens Plaid Link and exchanges the public token.
+ * The public token is kept in memory for the exchange call only.
+ * The access token is written to the vault and nowhere else.
+ */
+internal class PlaidLinker(
+    private val vault: TokenVault,
+    private val store: LocalStore,
+    private val api: PlaidApi,
+    private val source: PlaidBankSource,
+    private val controller: AiCfoController,
+    private val io: Executor,
+    private val main: (() -> Unit) -> Unit,
+) {
+    var opener: ((String) -> Unit)? = null
+    var busy by mutableStateOf(false)
+        private set
+
+    fun connect(advanceIntro: Boolean) {
+        if (!api.configured) {
+            controller.reportLinkError("Plaid is not configured")
+            return
+        }
+        start(update = false, advanceIntro = advanceIntro)
+    }
+
+    fun onSyncAction(code: String) {
+        when (code) {
+            SyncCode.NEEDS_REAUTH -> {
+                if (controller.activeBankLinkId() == PlaidBankSource.ID && api.configured) {
+                    start(update = true, advanceIntro = false)
+                } else {
+                    controller.reconnectBank()
+                }
+            }
+            SyncCode.FAILED -> controller.refreshAccounts(SyncTrigger.Manual)
+        }
+    }
+
+    fun onPublicToken(publicToken: String) {
+        busy = false
+        val intent = store.read(INTENT).orEmpty()
+        store.remove(INTENT)
+        if (intent == "update") {
+            controller.reconnectBank()
+            return
+        }
+        if (publicToken.isBlank()) {
+            controller.reportLinkError("Couldn't link these accounts. Nothing was saved.")
+            return
+        }
+        io.execute {
+            val exchanged = api.exchangePublicToken(publicToken)
+            main {
+                when (exchanged) {
+                    is PlaidOutcome.Ok -> saveAccessToken(exchanged.value, intent == "create-intro")
+                    PlaidOutcome.LoginRequired ->
+                        controller.reportLinkError("Couldn't link these accounts. Nothing was saved.")
+                    is PlaidOutcome.Failed -> controller.reportLinkError(exchanged.message)
+                }
+            }
+        }
+    }
+
+    fun onExit(cancelled: Boolean, displayMessage: String?) {
+        busy = false
+        val intent = store.read(INTENT).orEmpty()
+        store.remove(INTENT)
+        if (cancelled) return
+        val message = displayMessage?.let { SafeLog.redact(it).take(180) }?.ifBlank { null }
+            ?: "Couldn't link these accounts. Nothing was saved."
+        controller.reportLinkError(message)
+    }
+
+    private fun start(update: Boolean, advanceIntro: Boolean) {
+        if (busy) return
+        if (!api.configured) {
+            controller.reportLinkError("Plaid is not configured")
+            return
+        }
+        busy = true
+        controller.clearLinkError()
+        val userId = clientUserId()
+        io.execute {
+            val existing = if (update) readAccessToken() else null
+            if (update && existing.isNullOrBlank()) {
+                main {
+                    busy = false
+                    controller.reportLinkError("Reconnect to refresh balances.")
+                }
+                return@execute
+            }
+            val created = api.createLinkToken(
+                clientUserId = userId,
+                packageName = PlaidRequests.PACKAGE_NAME,
+                accessTokenForUpdate = if (update) existing else null,
+            )
+            main {
+                when (created) {
+                    is PlaidOutcome.Ok -> present(created.value, update, advanceIntro)
+                    PlaidOutcome.LoginRequired -> {
+                        busy = false
+                        controller.reportLinkError("Couldn't open your bank.")
+                    }
+                    is PlaidOutcome.Failed -> {
+                        busy = false
+                        controller.reportLinkError(created.message)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun present(linkToken: String, update: Boolean, advanceIntro: Boolean) {
+        store.write(
+            INTENT,
+            when {
+                update -> "update"
+                advanceIntro -> "create-intro"
+                else -> "create"
+            },
+        )
+        val open = opener
+        if (open == null) {
+            busy = false
+            store.remove(INTENT)
+            controller.reportLinkError("Couldn't open Plaid Link.")
+            return
+        }
+        try {
+            open(linkToken)
+        } catch (_: Throwable) {
+            busy = false
+            store.remove(INTENT)
+            controller.reportLinkError("Couldn't open Plaid Link.")
+        }
+    }
+
+    private fun saveAccessToken(accessToken: String, advanceIntro: Boolean) {
+        val stored = try {
+            vault.put(PlaidBankSource.ACCESS_TOKEN_KEY, accessToken)
+        } catch (_: Throwable) {
+            false
+        }
+        if (!stored) {
+            controller.reportLinkError("Couldn't link these accounts. Nothing was saved.")
+            return
+        }
+        source.onRelinked()
+        controller.completeExternalReadOnlyLink(advanceIntro)
+    }
+
+    private fun readAccessToken(): String? = try {
+        vault.read(PlaidBankSource.ACCESS_TOKEN_KEY)
+    } catch (_: Throwable) {
+        null
+    }
+
+    private fun clientUserId(): String {
+        val existing = store.read(USER)
+        if (!existing.isNullOrBlank() && !existing.contains("access-") && !existing.contains("public-")) {
+            return existing
+        }
+        val created = "fw-" + UUID.randomUUID().toString()
+        store.write(USER, created)
+        return created
+    }
+
+    private companion object {
+        const val INTENT = "plaid_link_intent"
+        const val USER = "plaid_client_user_id"
+    }
+}

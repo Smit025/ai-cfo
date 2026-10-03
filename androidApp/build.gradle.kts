@@ -1,7 +1,29 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+}
+
+val localProps = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+
+fun plaidBuildConfig(name: String, default: String = ""): String {
+    val raw = localProps.getProperty(name)?.trim().orEmpty().ifBlank { default }
+    val escaped = buildString {
+        for (ch in raw) {
+            when (ch) {
+                '\\' -> append("\\\\")
+                '"' -> append("\\\"")
+                '\n', '\r' -> Unit
+                else -> append(ch)
+            }
+        }
+    }
+    return "\"$escaped\""
 }
 
 android {
@@ -14,6 +36,9 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
+        buildConfigField("String", "PLAID_CLIENT_ID", plaidBuildConfig("PLAID_CLIENT_ID"))
+        buildConfigField("String", "PLAID_SECRET", plaidBuildConfig("PLAID_SECRET"))
+        buildConfigField("String", "PLAID_ENV", plaidBuildConfig("PLAID_ENV", "sandbox"))
     }
 
     buildTypes {
@@ -69,6 +94,7 @@ dependencies {
     implementation(libs.lifecycle.viewmodel.compose)
     implementation(libs.biometric)
     implementation(libs.fragment)
+    implementation(libs.plaid.link)
     implementation(libs.compose.ui.tooling.preview)
     debugImplementation(libs.compose.ui.tooling)
     debugImplementation(platform(libs.compose.bom))

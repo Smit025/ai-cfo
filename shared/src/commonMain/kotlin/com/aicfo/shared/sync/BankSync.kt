@@ -73,6 +73,7 @@ sealed class BankFetch {
     data class Ok(
         val accounts: List<SyncedAccount>,
         val transactions: List<ProviderTransaction>,
+        val removedTransactionIds: List<String> = emptyList(),
     ) : BankFetch()
 
     data class Unavailable(val reason: String) : BankFetch()
@@ -90,6 +91,8 @@ sealed class BankFetch {
  * delivers before returning. A live source may return immediately and deliver
  * later only by posting back onto that same thread. Do not log link tokens.
  * Read the vault inside the platform source; this interface does not take a token.
+ *
+ * There is no transfer, payment, or card-charge method.
  */
 interface BankLinkSource {
     val id: String
@@ -98,6 +101,9 @@ interface BankLinkSource {
     val readOnly: Boolean
 
     fun fetch(nowMs: Long, deliver: (BankFetch) -> Unit)
+
+    /** Drop provider cursors or other link state. Must not log tokens. */
+    fun onDisconnected() {}
 }
 
 data class IngestReport(
@@ -142,6 +148,16 @@ class TransactionLedger(private val store: LocalStore) {
 
     fun clear() {
         store.remove(KEY)
+    }
+
+    fun drop(ids: Collection<String>) {
+        if (ids.isEmpty()) return
+        val current = load().toMutableMap()
+        var changed = false
+        for (id in ids) {
+            if (current.remove(id) != null) changed = true
+        }
+        if (changed) save(current)
     }
 
     private fun load(): Map<String, ProviderTransaction> {

@@ -197,6 +197,7 @@ data class AccountsModel(
     val syncCode: String,
     val syncActionLabel: String,
     val syncStale: Boolean,
+    val linkNote: String = "",
 ) {
     fun groupCount(): Int = groups.size
     fun groupAt(index: Int): AccountGroupModel = groups[index]
@@ -230,6 +231,7 @@ data class OnboardingModel(
     val connectTypes: List<OnboardingCard>,
     val chips: List<String>,
     val linkError: String,
+    val linkNote: String = "",
 ) {
     fun cardCount(): Int = cards.size
     fun cardAt(index: Int): OnboardingCard = cards[index]
@@ -270,6 +272,7 @@ data class SettingsModel(
     val signedIn: Boolean = false,
     val phoneMask: String = "",
     val deviceLockReady: Boolean = false,
+    val sampleLink: Boolean = false,
 )
 
 data class LockModel(

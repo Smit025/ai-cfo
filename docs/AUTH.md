@@ -59,7 +59,7 @@ Debug builds do not lock when the user has not chosen biometrics and has not set
 | Link tokens | Existing `TokenVault` | No. Disconnect institutions still owns those |
 | Trial clock, move status | `LocalStore` | No |
 
-`TokenVault` still accepts only `link_…` tokens. The session does not go through that policy.
+`TokenVault` accepts `link_…` tokens and a Plaid `access-…` token. It does not accept passwords or public tokens. The session does not go through that policy.
 
 ## OTP provider
 
