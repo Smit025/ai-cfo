@@ -174,7 +174,7 @@ fun SettingsScreen(controller: AiCfoController, tick: Int) {
             ) {
                 Text(qaTitle, color = AiColors.Text, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                 Text(
-                    "Debug tools for this build. Force the hard paywall, restore the 30-day trial, or simulate a bank that needs reconnect.",
+                    "Debug tools for this build. Force the hard paywall, restore the 25-day trial, or simulate a bank that needs reconnect.",
                     color = AiColors.Muted,
                     fontSize = 13.sp,
                     lineHeight = 18.sp,

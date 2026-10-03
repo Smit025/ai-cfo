@@ -361,13 +361,13 @@ internal object OnboardingUseCase {
                 ),
             )
             else -> empty.copy(
-                badge = "30 days free · Pro",
+                badge = "25 days free · Pro",
                 title = "Start your free\nPro trial",
                 body = "Full access to every move this month. No charge today.",
-                primaryCta = "Start free 30-day trial",
+                primaryCta = "Start free 25-day trial",
                 secondaryCta = "Maybe later",
                 sectionLabel = "WHAT'S INCLUDED",
-                footnote = "After 30 days, Pro continues on a paid plan. Cancel before then — no charge.",
+                footnote = "After 25 days, Pro continues on a paid plan. Cancel before then — no charge.",
                 features = listOf(
                     OnboardingCard(
                         "Full moves list",
@@ -402,7 +402,7 @@ internal object OnboardingUseCase {
 
 internal object PaywallUseCase {
     fun build(trialConsumed: Boolean, monthlyLabel: String, yearlyLabel: String): PaywallModel = PaywallModel(
-        title = if (trialConsumed) "Your 30-day Pro trial has ended" else "Finwise Pro",
+        title = if (trialConsumed) "Your 25-day Pro trial has ended" else "Finwise Pro",
         lede = "The monthly action coach stays on Pro. Specific moves, the math, and a next step — not a free dashboard.",
         monthlyPrice = monthlyLabel,
         monthlyPeriod = "/ month",

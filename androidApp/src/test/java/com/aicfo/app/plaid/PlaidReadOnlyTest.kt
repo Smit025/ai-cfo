@@ -2,6 +2,7 @@ package com.aicfo.app.plaid
 
 import com.aicfo.shared.domain.AiCfoController
 import com.aicfo.shared.domain.AppClock
+import com.aicfo.shared.domain.Pricing
 import com.aicfo.shared.market.EmptyLocalStrings
 import com.aicfo.shared.market.Markets
 import com.aicfo.shared.security.LinkPolicy
@@ -215,7 +216,7 @@ class PlaidReadOnlyTest {
             vault,
             store,
             object : AppClock {
-                override fun nowEpochMs(): Long = now + 31L * 24L * 60L * 60L * 1000L
+                override fun nowEpochMs(): Long = now + Pricing.TRIAL_WINDOW_MS
             },
             Markets.unitedStates(),
             EmptyLocalStrings,

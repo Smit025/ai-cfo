@@ -18,7 +18,7 @@ shared/       KMP — domain, use cases, Maya stub, entitlement, security contra
 
 | Module | What lives here |
 | --- | --- |
-| `shared/src/commonMain` | Profile, accounts, moves, onboarding, 30-day trial, paywall, QA overrides, redaction, link-token policy, market packs. Entry point: `AiCfoController`. |
+| `shared/src/commonMain` | Profile, accounts, moves, onboarding, 25-day trial, paywall, QA overrides, redaction, link-token policy, market packs. Entry point: `AiCfoController`. |
 | `shared/src/androidMain` | Clock and time-zone actuals (`System.currentTimeMillis`, `java.time`). |
 | `shared/src/iosMain` | Clock and time-zone actuals (`NSDate`, `NSTimeZone`). |
 | `androidApp` | Compose screens, Android Keystore token vault, biometric prompt, fold / large-width split. |
@@ -52,7 +52,7 @@ Floating pill nav: **Home · Moves · Accounts · Settings**.
 
 | Screen | Behavior |
 | --- | --- |
-| Onboarding | Welcome → actions, not charts → read-only connect. The 30-day Pro trial step comes after phone OTP and unlock setup. See `docs/AUTH.md`. |
+| Onboarding | Welcome → actions, not charts → read-only connect. The 25-day Pro trial step comes after phone OTP and unlock setup. See `docs/AUTH.md`. |
 | Phone + OTP | Account login. US numbers, 6-digit code. Session is stored only after a correct code. |
 | Email | Monthly savings report. Skippable. Not a login. |
 | Unlock setup | Android PIN or biometrics. iOS Face ID / Touch ID or device passcode. |
@@ -64,7 +64,7 @@ Floating pill nav: **Home · Moves · Accounts · Settings**.
 | Settings | Profile, Face ID / biometric toggle, Log out, notifications, privacy, disconnect. QA tools appear only in debug builds. |
 | Paywall | Hard stop when the trial is over. $9.99/month or $79/year. No forever-free plan. |
 
-Onboarding intro follows Sofia’s v1.1 boards (`OnboardingScreen` / `OnboardingView`): welcome, actions, then connect. **Connect securely** opens Plaid Link (sandbox) on Android. **Skip for now** continues without linking. If Link is not configured, or the vault rejects the access token, nothing is marked linked and the screen shows an error. Debug builds can still link the Maya sample from Accounts. Phone, OTP, the optional report email, and device-unlock setup come next (`docs/AUTH.md`). **Start free 30-day trial** then starts the clock. **Maybe later** finishes onboarding without a trial, so the hard paywall shows after unlock.
+Onboarding intro follows Sofia’s v1.1 boards (`OnboardingScreen` / `OnboardingView`): welcome, actions, then connect. **Connect securely** opens Plaid Link (sandbox) on Android. **Skip for now** continues without linking. If Link is not configured, or the vault rejects the access token, nothing is marked linked and the screen shows an error. Debug builds can still link the Maya sample from Accounts. Phone, OTP, the optional report email, and device-unlock setup come next (`docs/AUTH.md`). **Start free 25-day trial** then starts the clock. **Maybe later** finishes onboarding without a trial, so the hard paywall shows after unlock.
 
 The last main tab (Home, Moves, Accounts, Settings) is stored with the other local flags and restored after process death.
 
@@ -86,17 +86,17 @@ Home opens on the first still-open move. Marking Gympass done or skipped promote
 
 ## Trial, paywall, and the QA flip
 
-- **Start free 30-day trial** starts a **30-day full Pro trial**. **Maybe later** does not — the hard paywall is next, so there is no forever-free path.
+- **Start free 25-day trial** starts a **25-day full Pro trial**. **Maybe later** does not — the hard paywall is next, so there is no forever-free path.
 - When that clock runs out, the app shows a **hard paywall**. There is no free tier after the trial.
 - Prices: **$9.99/month** or **$79/year**. Purchase buttons in this build are simulated and mark the account Pro.
-- Replaying onboarding does **not** restart the 30 days.
+- Replaying onboarding does **not** restart the 25 days.
 
 QA controls are in **Settings → QA · trial / paywall** only when `Qa.toolsEnabled(debugBuild)` is true. That is debug/DEBUG builds. Release builds pass `debugBuild = false` (Android `BuildConfig.DEBUG`, iOS `#if DEBUG`), so the tools, the paywall **QA: return to trial** button, and `debugForce*` are absent. A release build also ignores a stored `qa_override`, so a planted preference cannot force the trial or the paywall.
 
 | Control | Effect |
 | --- | --- |
 | Show paywall | Force the hard paywall, even inside an active trial. |
-| Restore trial | Force the trial presentation (30 days left) without waiting. |
+| Restore trial | Force the trial presentation (25 days left) without waiting. |
 | Simulate Pro | Force a Pro entitlement. |
 | Clear QA override | Drop the override and use the real clock / simulated subscription. |
 | Replay onboarding | Show the four steps again. The original trial start is kept. |
@@ -157,7 +157,7 @@ cp local.properties.example local.properties
 
 A debug build with those two values can open Plaid Link. Leave them blank and the app still builds; Connect says **Plaid is not configured**. In Link, use Plaid’s sandbox institution (First Platypus Bank, `user_good` / `pass_good`). The dashboard must allow package `com.aicfo.app`. Release builds do not embed the secret.
 
-The Plaid item stays for the 30-day Pro trial, or after a simulated monthly or yearly subscription (`subscribed_plan`). Play billing is not wired. When the trial ends with no subscription, the app deletes the Keystore access token, asks sandbox `/item/remove` if it can, and Home bank figures return to “—”. A new link waits until that simulated subscription exists.
+The Plaid item stays for the 25-day Pro trial, or after a simulated monthly or yearly subscription (`subscribed_plan`). Play billing is not wired. When the trial ends with no subscription, the app deletes the Keystore access token, asks sandbox `/item/remove` if it can, and Home bank figures return to “—”. A new link waits until that simulated subscription exists.
 
 Debug APK and release bundle (the `*.apk` / `*.aab` patterns are gitignored):
 
@@ -231,7 +231,7 @@ iOS is not compiled in that workflow. Compiling the Swift app, or the Kotlin/Nat
 
 ## Tests
 
-`shared/src/commonTest` covers the 30-day cliff, the debug QA override, the release path that cannot force a trial or paywall, “no forever free”, Gympass $47 × 12 = $564, home ranking, cancel / keep, link-token policy, a failed connect that stays unlinked, tab restore, the debug/release unlock default, the auth gate (no session → phone, session + unlock needed → lock, logout clears the session), and log redaction.
+`shared/src/commonTest` covers the 25-day cliff, the debug QA override, the release path that cannot force a trial or paywall, “no forever free”, Gympass $47 × 12 = $564, home ranking, cancel / keep, link-token policy, a failed connect that stays unlinked, tab restore, the debug/release unlock default, the auth gate (no session → phone, session + unlock needed → lock, logout clears the session), and log redaction.
 
 ```bash
 ./gradlew :shared:testDebugUnitTest

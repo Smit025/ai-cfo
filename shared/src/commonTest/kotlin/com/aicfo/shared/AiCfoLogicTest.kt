@@ -44,14 +44,14 @@ class AiCfoLogicTest {
     }
 
     @Test
-    fun trialLastsThirtyDaysThenPaywall() {
+    fun trialLastsTwentyFiveDaysThenPaywall() {
         val start = 1_700_000_000_000L
         val clock = MutableClock(start)
         val app = newApp(clock)
         finishOnboarding(app)
         assertEquals(Gate.APP, app.gate())
         assertEquals(Phase.TRIAL, app.settings().phase)
-        assertEquals(30, app.settings().planLabel.contains("30 days left").let { if (it) 30 else -1 })
+        assertEquals("Pro trial · 25 days left", app.settings().planLabel)
 
         clock.now = start + Pricing.TRIAL_WINDOW_MS - 1L
         assertEquals(Phase.TRIAL, app.settings().phase)
@@ -96,7 +96,7 @@ class AiCfoLogicTest {
         finishOnboarding(app)
         clock.now = start + Pricing.TRIAL_WINDOW_MS
         assertEquals(Gate.PAYWALL, app.gate())
-        assertEquals("Your 30-day Pro trial has ended", app.paywall().title)
+        assertEquals("Your 25-day Pro trial has ended", app.paywall().title)
 
         app.debugForceTrial()
         assertEquals(Gate.APP, app.gate())
@@ -104,7 +104,7 @@ class AiCfoLogicTest {
 
         app.debugForcePaywall()
         assertEquals(Gate.PAYWALL, app.gate())
-        assertEquals("Your 30-day Pro trial has ended", app.paywall().title)
+        assertEquals("Your 25-day Pro trial has ended", app.paywall().title)
         app.purchaseYearly()
         assertEquals(Gate.APP, app.gate())
         assertEquals(Phase.PRO, app.settings().phase)
@@ -222,8 +222,8 @@ class AiCfoLogicTest {
         app.testingSeedSession()
         val trial = app.onboarding()
         assertEquals(3, trial.step)
-        assertEquals("30 days free · Pro", trial.badge)
-        assertEquals("Start free 30-day trial", trial.primaryCta)
+        assertEquals("25 days free · Pro", trial.badge)
+        assertEquals("Start free 25-day trial", trial.primaryCta)
         assertEquals("Maybe later", trial.secondaryCta)
         assertEquals(4, trial.featureCount())
         assertEquals("Then paywall", trial.chipAt(2))
@@ -279,7 +279,7 @@ class AiCfoLogicTest {
         app.debugReplayOnboarding()
         assertEquals(Gate.ONBOARDING, app.gate())
         finishOnboarding(app)
-        assertTrue(app.settings().planLabel.contains("20 days"))
+        assertEquals("Pro trial · 15 days left", app.settings().planLabel)
     }
 
     @Test

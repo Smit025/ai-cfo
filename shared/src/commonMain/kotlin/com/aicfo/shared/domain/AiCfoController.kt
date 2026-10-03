@@ -358,7 +358,7 @@ class AiCfoController(
     }
 
     /**
-     * A Plaid item may stay during the 30-day Pro trial, or while [subscribed_plan]
+     * A Plaid item may stay during the 25-day Pro trial, or while [subscribed_plan]
      * is MONTHLY or YEARLY. That plan flag is a simulated subscription. Play billing
      * is not wired, so a finished trial with no subscription is unpaid.
      * Onboarding may still link before the trial starts. After onboarding, a paywall

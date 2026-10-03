@@ -57,7 +57,7 @@ private val Hairline = Color(0xFFE6E8EE)
 
 /**
  * Four-step onboarding matched to Sofia's v1.1 boards:
- * welcome, actions-not-charts, read-only connect, 30-day Pro trial.
+ * welcome, actions-not-charts, read-only connect, 25-day Pro trial.
  */
 @Composable
 fun OnboardingScreen(

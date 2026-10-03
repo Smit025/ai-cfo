@@ -116,7 +116,7 @@ struct SettingsView: View {
                 if settings.qaEnabled {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("QA · trial / paywall").font(Theme.semi(16)).foregroundStyle(Theme.text)
-                        Text("Debug tools for this build. Force the hard paywall, restore the 30-day trial, or simulate a bank that needs reconnect.")
+                        Text("Debug tools for this build. Force the hard paywall, restore the 25-day trial, or simulate a bank that needs reconnect.")
                             .font(Theme.body(13)).foregroundStyle(Theme.muted)
                         PrimaryButton(label: "Show paywall") { model.controller.debugForcePaywall() }
                         SecondaryButton(label: "Restore trial") { model.controller.debugForceTrial() }

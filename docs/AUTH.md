@@ -18,7 +18,7 @@ Existing onboarding intro, then account auth, then the existing trial step:
 3. **OTP** — 6 digits. Debug builds accept `000000` (and can fill that code). The session is written to secure storage only after a successful verify.
 4. **Email** — monthly savings report. Skip is allowed. The address is not an account identity.
 5. **Unlock setup** — Android: 6-digit PIN, with fingerprint as an alternate when the device has it. iOS: Face ID / Touch ID, with the device passcode as the fallback.
-6. **Trial** — the existing “Start free 30-day trial” / “Maybe later” step.
+6. **Trial** — the existing “Start free 25-day trial” / “Maybe later” step.
 7. **Home**, or the hard paywall if the trial was declined or has ended.
 
 ## Returning cold start
@@ -74,7 +74,7 @@ Debug skip on the phone screen persists a session and continues to email. It is 
 
 - **Unlock with Face ID** (iOS) / **Unlock with biometrics** (Android). Device unlock only.
 - **Lock now** — shown when biometrics, a PIN, or the device passcode is configured.
-- **Log out** — deletes the account session and the local PIN. The next open is Phone. It does not restart the 30-day trial.
+- **Log out** — deletes the account session and the local PIN. The next open is Phone. It does not restart the 25-day trial.
 
 ## Screens
 
