@@ -18,6 +18,7 @@ import com.aicfo.shared.sync.ProviderTransaction
 import com.aicfo.shared.sync.SyncCode
 import com.aicfo.shared.sync.SyncStatus
 import com.aicfo.shared.sync.SyncTrigger
+import com.aicfo.shared.sync.SyncedAccount
 import com.aicfo.shared.sync.TransactionLedger
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -298,6 +299,79 @@ class BankSyncTest {
         assertEquals(0, app.ingestedTransactionCount())
         assertNull(store.read("last_synced_at"))
         assertTrue(AiCfoController(MemoryTokenVault(), store, ManualClock(10L)).syncStatus() is SyncStatus.Idle)
+    }
+
+    @Test
+    fun plaidIdsUpdateAndRemovedIdsDrop() {
+        val source = ScriptedSource(
+            BankFetch.Ok(
+                MayaStubBankSource.previewAccounts(),
+                listOf(tx("txn_plaid_1", -633, "Starbucks"), tx("txn_plaid_2", -100, "Old")),
+            ),
+        )
+        val app = linkedApp(ManualClock(10L), source = source)
+        app.refreshAccounts(SyncTrigger.Manual)
+        assertEquals(2, app.ingestedTransactionCount())
+        source.next = BankFetch.Ok(
+            accounts = MayaStubBankSource.previewAccounts(),
+            transactions = listOf(tx("txn_plaid_1", -700, "Starbucks")),
+            removedTransactionIds = listOf("txn_plaid_2"),
+        )
+        app.refreshAccounts(SyncTrigger.PullToRefresh)
+        assertEquals(1, app.ingestedTransactionCount())
+        assertEquals(-700L, app.ingestedTransaction("txn_plaid_1")!!.amountMinor)
+        assertNull(app.ingestedTransaction("txn_plaid_2"))
+    }
+
+    @Test
+    fun externalLinkDoesNotCopyTheAccessTokenIntoPrefs() {
+        val store = MemoryLocalStore()
+        val vault = MemoryTokenVault()
+        val token = "access-sandbox-de3ce8ef-33f8-452c-a685-8671031fc0f6"
+        assertTrue(vault.put("plaid.access_token", token))
+        val app = AiCfoController(
+            vault,
+            store,
+            ManualClock(10L),
+            Markets.unitedStates(),
+            EmptyLocalStrings,
+            true,
+            ScriptedSource(
+                BankFetch.Ok(
+                    listOf(
+                        SyncedAccount(
+                            id = "acc_checking",
+                            name = "Plaid Checking",
+                            maskLine = "··0000 · Checking",
+                            balanceMinor = 11_000,
+                            currency = "USD",
+                            group = "CASH",
+                            initials = "PC",
+                            colorHex = "#2563EB",
+                        ),
+                    ),
+                    emptyList(),
+                ),
+            ),
+        )
+        val netWorth = app.home().netWorthAmount
+        assertTrue(app.completeExternalReadOnlyLink(false))
+        assertTrue(app.accounts().linked)
+        assertEquals("Plaid Checking", app.accounts().groupAt(0).accountAt(0).name)
+        assertEquals("··0000 · Checking", app.accounts().groupAt(0).accountAt(0).detail)
+        assertEquals("\$110", app.accounts().groupAt(0).accountAt(0).balance)
+        assertEquals("Read-only", app.accounts().groupAt(0).accountAt(0).readOnlyLabel)
+        assertEquals(netWorth, app.home().netWorthAmount)
+        val blob = listOf(
+            "synced_accounts",
+            "synced_transactions",
+            "bank_link_kind",
+            "sync_error",
+            "last_synced_at",
+        ).joinToString("|") { store.read(it).orEmpty() }
+        assertFalse(blob.contains(token))
+        assertFalse(blob.contains("access-sandbox"))
+        assertEquals(token, vault.read("plaid.access_token"))
     }
 
     @Test

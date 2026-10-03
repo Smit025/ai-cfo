@@ -202,7 +202,7 @@ class AutomationSemanticsTest {
         val controller = debugController()
         repeat(8) {
             if (controller.gate() != Gate.ONBOARDING) return@repeat
-            controller.primaryOnboarding()
+            if (controller.onboarding().step == 2) controller.secondaryOnboarding() else controller.primaryOnboarding()
         }
         assertEquals(Gate.AUTH, controller.gate())
         assertEquals(AuthStep.PHONE, controller.authStep())
@@ -250,7 +250,7 @@ class AutomationSemanticsTest {
     private fun reachMain(controller: AiCfoController) {
         repeat(8) {
             if (controller.gate() != Gate.ONBOARDING) return@repeat
-            controller.primaryOnboarding()
+            if (controller.onboarding().step == 2) controller.secondaryOnboarding() else controller.primaryOnboarding()
         }
         if (controller.gate() == Gate.AUTH) {
             controller.debugSkipPhone()

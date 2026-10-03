@@ -36,13 +36,21 @@ struct AccountsView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text(accounts.emptyTitle).font(Theme.semi(17)).foregroundStyle(Theme.text)
                         Text(accounts.emptyBody).font(Theme.body(14)).foregroundStyle(Theme.muted)
+                        if !accounts.linkNote.isEmpty {
+                            Text(accounts.linkNote)
+                                .font(Theme.body(14))
+                                .foregroundStyle(Theme.muted)
+                        }
                         if !accounts.linkError.isEmpty {
                             Text(accounts.linkError)
                                 .font(Theme.body(14))
                                 .foregroundStyle(Theme.danger)
                         }
                         PrimaryButton(label: accounts.emptyCta) {
-                            _ = model.controller.connectReadOnlyStub()
+                            let note = accounts.linkNote.isEmpty
+                                ? "Plaid Link is not in the iOS app yet. Adding it needs a Mac."
+                                : accounts.linkNote
+                            model.controller.reportLinkError(message: note)
                         }
                         .padding(.top, 6)
                     }

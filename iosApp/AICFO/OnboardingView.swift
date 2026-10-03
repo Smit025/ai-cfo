@@ -39,7 +39,14 @@ struct OnboardingView: View {
                     .padding(.bottom, 12)
             }
             PrimaryButton(label: step.primaryCta) {
-                model.controller.primaryOnboarding()
+                if Int(step.step) == 2 {
+                    let note = step.linkNote.isEmpty
+                        ? "Plaid Link is not in the iOS app yet. Adding it needs a Mac."
+                        : step.linkNote
+                    model.controller.reportLinkError(message: note)
+                } else {
+                    model.controller.primaryOnboarding()
+                }
             }
             secondary(step)
         }
@@ -169,6 +176,12 @@ struct OnboardingView: View {
                 .font(Theme.body(16))
                 .foregroundStyle(Theme.muted)
                 .fixedSize(horizontal: false, vertical: true)
+            if !step.linkNote.isEmpty {
+                Text(step.linkNote)
+                    .font(Theme.body(14))
+                    .foregroundStyle(Theme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 6) {
                     Image(systemName: "lock.fill")

@@ -193,6 +193,10 @@ internal object AccountsUseCase {
         linkError: String,
         accounts: List<SyncedAccount>,
         sync: SyncLine,
+        linkConfigured: Boolean,
+        unavailableLabel: String,
+        linkNote: String,
+        sampleLink: Boolean,
     ): AccountsModel {
         val profile = MayaStub.profile
         val readOnly = copy.text(CopyKey.REG_READ_ONLY)
@@ -220,22 +224,23 @@ internal object AccountsUseCase {
         }
         return AccountsModel(
             title = "Accounts",
-            subtitle = if (linked) {
-                "Connected read-only · ${profile.fullName}"
-            } else {
-                "Nothing linked · ${profile.fullName}"
+            subtitle = when {
+                !linked -> "Nothing linked · ${profile.fullName}"
+                sampleLink -> "Maya sample · not your bank"
+                else -> "Connected read-only · ${profile.fullName}"
             },
             trust = "Read-only access. We never move money or store credentials. You take every action.",
             linked = linked,
             emptyTitle = "No institutions linked",
             emptyBody = "Connections are read-only. Bank passwords are never stored on this device.",
-            emptyCta = "Link read-only sample",
+            emptyCta = if (linkConfigured) "Connect securely" else unavailableLabel,
             linkError = linkError,
             groups = groups,
             freshnessLabel = sync.freshnessLabel,
             syncCode = sync.syncCode,
             syncActionLabel = sync.syncActionLabel,
             syncStale = sync.syncStale,
+            linkNote = linkNote,
         )
     }
 
@@ -262,6 +267,9 @@ internal object OnboardingUseCase {
         market: MarketPack,
         copy: CopyResolver,
         linkError: String,
+        linkConfigured: Boolean,
+        unavailableLabel: String,
+        linkNote: String,
     ): OnboardingModel {
         val empty = OnboardingModel(
             step = step,
@@ -322,8 +330,9 @@ internal object OnboardingUseCase {
                 kicker = "CONNECT ACCOUNTS",
                 title = "See your money\nin one calm place",
                 body = "Link banks, cards, loans, and investments so we can surface this month's moves.",
-                primaryCta = "Connect securely",
+                primaryCta = if (linkConfigured) "Connect securely" else unavailableLabel,
                 secondaryCta = "Skip for now",
+                linkNote = linkNote,
                 badge = copy.text(CopyKey.REG_READ_ONLY),
                 trustTitle = copy.text(CopyKey.REG_NEVER_MOVE),
                 trustBody = copy.text(market.config.disclosureKey),

@@ -52,6 +52,7 @@ fun HomeScreen(
     controller: AiCfoController,
     tick: Int,
     wide: Boolean,
+    onSyncAction: (String) -> Unit = { performSyncAction(controller, it) },
     onOpen: (String) -> Unit,
 ) {
     val freshnessTick = rememberFreshnessTick()
@@ -74,7 +75,7 @@ fun HomeScreen(
             Spacer(Modifier.height(12.dp))
             HomeHeader(home)
             Spacer(Modifier.height(18.dp))
-            WealthStrip(home) { performSyncAction(controller, home.syncCode) }
+            WealthStrip(home) { onSyncAction(home.syncCode) }
             if (home.hope.isNotEmpty()) {
                 Spacer(Modifier.height(12.dp))
                 HopeLine(home.hope)

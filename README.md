@@ -26,7 +26,7 @@ shared/       KMP — domain, use cases, Maya stub, entitlement, security contra
 
 `AiCfoController` is constructed by each app with a platform `TokenVault`, `LocalStore`, and optional `LocalStrings`. The default market is the United States. The UIs render the models it returns. They do not reimplement ranking, trial math, or the Maya plan.
 
-Not in this MVP: budgets, charts as the home story, P2P, tax filing, a free-form chat on Home, or live Plaid. Bank linking is a read-only stub with a real sync state machine (`SyncStatus`, cold start / foreground / pull-to-refresh). See `docs/SYNC.md`. Canada, Europe, and the UAE are config stubs only — the shipped coach plan is still Maya in the US.
+Not in this MVP: budgets, charts as the home story, P2P, tax filing, or a free-form chat on Home. Android bank linking is read-only Plaid when sandbox keys are in `local.properties` (`docs/SYNC.md`). Without those keys, Connect says Plaid is not configured. The Maya sample is a debug button, not the default connect path. iOS does not open Link yet. Canada, Europe, and the UAE are config stubs only — the shipped coach plan is still Maya in the US.
 
 ## Markets
 
@@ -64,7 +64,7 @@ Floating pill nav: **Home · Moves · Accounts · Settings**.
 | Settings | Profile, Face ID / biometric toggle, Log out, notifications, privacy, disconnect. QA tools appear only in debug builds. |
 | Paywall | Hard stop when the trial is over. $9.99/month or $79/year. No forever-free plan. |
 
-Onboarding intro follows Sofia’s v1.1 boards (`OnboardingScreen` / `OnboardingView`): welcome, actions, then connect. **Connect securely** links the read-only Maya sample; **Skip for now** continues without linking. If the vault or link policy rejects a token, connect fails softly: nothing is marked linked, onboarding stays on the connect step, and the screen shows an error. Phone, OTP, the optional report email, and device-unlock setup come next (`docs/AUTH.md`). **Start free 30-day trial** then starts the clock. **Maybe later** finishes onboarding without a trial, so the hard paywall shows after unlock.
+Onboarding intro follows Sofia’s v1.1 boards (`OnboardingScreen` / `OnboardingView`): welcome, actions, then connect. **Connect securely** opens Plaid Link on Android when sandbox keys are configured. **Skip for now** continues without linking. If keys are missing, the button says **Plaid is not configured** and does not link the Maya sample. iOS shows that Link is not available yet and that a Mac is required to add it. If the vault or link policy rejects a token, connect fails softly: nothing is marked linked, onboarding stays on the connect step, and the screen shows an error. Phone, OTP, the optional report email, and device-unlock setup come next (`docs/AUTH.md`). **Start free 30-day trial** then starts the clock. **Maybe later** finishes onboarding without a trial, so the hard paywall shows after unlock.
 
 The last main tab (Home, Moves, Accounts, Settings) is stored with the other local flags and restored after process death.
 
@@ -108,10 +108,10 @@ The trial start, subscription flag, selected tab, move statuses, and bank sync m
 ## Security foundations
 
 - Linking is read-only. The product never moves money.
-- Raw bank passwords are rejected. The vault only accepts `link_…` tokens (`LinkPolicy`).
+- Raw bank passwords are rejected. The vault accepts `link_…` tokens and a Plaid access token (`LinkPolicy`). It does not accept public tokens.
 - Android stores those tokens with an Android Keystore AES-GCM key. iOS stores them in the Keychain (`kSecAttrAccessibleWhenUnlockedThisDeviceOnly`). Both vaults call shared `LinkPolicy.accepts` before writing. A rejected token is not stored.
 - Cleartext HTTP is off (`network_security_config.xml`, `TlsPolicy.cleartextAllowed = false`).
-- `TlsPolicy.spkiPins` is the certificate-pinning hook. The pin is a placeholder and must be replaced before a real API host is called. This scaffold makes no network calls and does not request `INTERNET`.
+- Android requests `INTERNET` for HTTPS calls to Plaid only. `TlsPolicy.spkiPins` is still a placeholder pin for a future Finwise API host.
 - `SafeLog.redact` strips link tokens, `password=` / `token=` assignments, emails, and 13–19 digit numbers. The logger does not forward the original line.
 - Accounts render a Read-only badge. Stored account data is a mask (last four) plus a display balance — no full account numbers.
 - Device unlock gates a cold start while an account session exists. Biometrics and the PIN are not account login. Release builds always keep an unlock path (biometrics, Android PIN, or the iOS device passcode). Debug builds leave the lock off until the user opts in, so emulator QA is not stuck, and the phone screen can show **Debug skip**. Settings → **Lock now** shows the gate without reinstalling. Log out clears the account session.
@@ -147,6 +147,8 @@ Requirements: JDK 17 or 21, Android SDK 35 (platform + build-tools 35.0.0).
 ```bash
 cp local.properties.example local.properties
 # edit sdk.dir, or export ANDROID_HOME
+# optional: PLAID_CLIENT_ID, PLAID_SECRET, PLAID_ENV=sandbox
+# see docs/SYNC.md
 
 ./gradlew :shared:testDebugUnitTest
 ./gradlew :androidApp:assembleDebug

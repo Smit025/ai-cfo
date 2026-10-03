@@ -60,7 +60,12 @@ private val Hairline = Color(0xFFE6E8EE)
  * welcome, actions-not-charts, read-only connect, 30-day Pro trial.
  */
 @Composable
-fun OnboardingScreen(controller: AiCfoController, tick: Int) {
+fun OnboardingScreen(
+    controller: AiCfoController,
+    tick: Int,
+    linking: Boolean = false,
+    onConnect: () -> Unit = { controller.reportLinkError("Plaid is not configured") },
+) {
     val model = remember(tick) { controller.onboarding() }
     Box(Modifier.fillMaxSize().statusBarsPadding(), contentAlignment = Alignment.TopCenter) {
         Column(
@@ -101,7 +106,13 @@ fun OnboardingScreen(controller: AiCfoController, tick: Int) {
                     modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                 )
             }
-            PrimaryButton(label = model.primaryCta, onClick = { controller.primaryOnboarding() })
+            PrimaryButton(
+                label = model.primaryCta,
+                enabled = !linking,
+                onClick = {
+                    if (model.step == 2) onConnect() else controller.primaryOnboarding()
+                },
+            )
             when (model.step) {
                 2 -> if (model.secondaryCta.isNotEmpty()) {
                     Text(
@@ -274,6 +285,10 @@ private fun ConnectStep(model: OnboardingModel) {
     Text(model.title, color = AiColors.Text, fontSize = 32.sp, lineHeight = 38.sp, fontWeight = FontWeight.Bold)
     Spacer(Modifier.height(12.dp))
     Text(model.body, color = AiColors.Muted, fontSize = 16.sp, lineHeight = 23.sp)
+    if (model.linkNote.isNotEmpty()) {
+        Spacer(Modifier.height(12.dp))
+        Text(model.linkNote, color = AiColors.Muted, fontSize = 14.sp, lineHeight = 20.sp)
+    }
     Spacer(Modifier.height(18.dp))
     Column(Modifier.fillMaxWidth().softCard(radius = 22.dp).padding(18.dp)) {
         Row(

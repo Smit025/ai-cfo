@@ -167,6 +167,8 @@ class AiCfoLogicTest {
         val vault = MemoryTokenVault()
         val app = AiCfoController(vault, MemoryLocalStore(), MutableClock(10L))
         assertFalse(LinkPolicy.accepts("password=hunter2"))
+        assertFalse(LinkPolicy.accepts("public-sandbox-de3ce8ef-33f8-452c-a685-8671031fc0f6"))
+        assertTrue(LinkPolicy.accepts("access-sandbox-de3ce8ef-33f8-452c-a685-8671031fc0f6"))
         app.advanceOnboarding()
         app.advanceOnboarding()
         val connect = app.onboarding()
@@ -174,6 +176,7 @@ class AiCfoLogicTest {
         assertTrue(connect.canAdvance)
         assertEquals("Connect securely", connect.primaryCta)
         assertEquals("Skip for now", connect.secondaryCta)
+        assertEquals("Connect securely", app.accounts().emptyCta)
         assertTrue(app.connectReadOnlyStub())
         val token = vault.read("institution.chase-checking")
         assertEquals("link_stub_chase-checking", token)
@@ -227,25 +230,31 @@ class AiCfoLogicTest {
     }
 
     @Test
-    fun connectSecurelyLinksThenContinues() {
+    fun connectStepDoesNotLinkTheMayaSample() {
         val vault = MemoryTokenVault()
         val app = AiCfoController(vault, MemoryLocalStore(), MutableClock(10L))
         app.advanceOnboarding()
         app.advanceOnboarding()
         app.primaryOnboarding()
-        assertEquals(Gate.AUTH, app.gate())
+        assertEquals(Gate.ONBOARDING, app.gate())
         assertEquals(2, app.onboarding().step)
-        assertEquals("link_stub_chase-checking", vault.read("institution.chase-checking"))
-        assertTrue(app.accounts().linked)
+        assertNull(vault.read("institution.chase-checking"))
+        assertFalse(app.accounts().linked)
+        assertTrue(app.onboarding().linkError.contains("Nothing was linked"))
+        app.setBankLinkAvailability(false, "Plaid is not configured", "")
+        assertEquals("Plaid is not configured", app.onboarding().primaryCta)
+        assertEquals("Plaid is not configured", app.accounts().emptyCta)
     }
 
     @Test
     fun logsRedactTokensPasswordsAndCardNumbers() {
         val cleaned = SafeLog.redact(
-            "saved link_stub_chase-checking password=hunter2 4111111111111111 sess_1700_1234 otp 000000",
+            "saved link_stub_chase-checking access-sandbox-de3ce8ef-33f8-452c-a685-8671031fc0f6 password=hunter2 4111111111111111 sess_1700_1234 otp 000000",
         )
         assertFalse(cleaned.contains("hunter2"))
         assertFalse(cleaned.contains("link_stub_chase-checking"))
+        assertFalse(cleaned.contains("access-sandbox"))
+        assertFalse(cleaned.contains("de3ce8ef"))
         assertFalse(cleaned.contains("4111111111111111"))
         assertFalse(cleaned.contains("sess_1700_1234"))
         assertFalse(cleaned.contains("000000"))
@@ -344,7 +353,7 @@ class AiCfoLogicTest {
         app.advanceOnboarding()
         app.advanceOnboarding()
         assertEquals(2, app.onboarding().step)
-        app.primaryOnboarding()
+        assertFalse(app.connectReadOnlyStub())
         assertEquals(2, app.onboarding().step)
         assertFalse(app.accounts().linked)
         assertTrue(app.onboarding().linkError.contains("Nothing was saved"))
@@ -362,6 +371,23 @@ class AiCfoLogicTest {
         assertEquals(2, app.onboarding().step)
         assertFalse(app.accounts().linked)
         assertTrue(app.accounts().linkError.isNotEmpty())
+    }
+
+    @Test
+    fun releaseBuildCannotLinkTheMayaSample() {
+        val vault = MemoryTokenVault()
+        val release = AiCfoController(
+            vault,
+            MemoryLocalStore(),
+            MutableClock(10L),
+            Markets.unitedStates(),
+            EmptyLocalStrings,
+            false,
+            MemorySecureStore(),
+        )
+        assertFalse(release.connectReadOnlyStub())
+        assertFalse(release.accounts().linked)
+        assertNull(vault.read("institution.chase-checking"))
     }
 
     @Test
@@ -399,7 +425,7 @@ class AiCfoLogicTest {
     private fun finishOnboarding(app: AiCfoController) {
         repeat(8) {
             if (app.gate() != Gate.ONBOARDING) return@repeat
-            app.primaryOnboarding()
+            if (app.onboarding().step == 2) app.secondaryOnboarding() else app.primaryOnboarding()
         }
         if (!app.hasSession()) app.testingSeedSession()
         repeat(4) {

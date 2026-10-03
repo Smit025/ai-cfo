@@ -42,6 +42,11 @@ final class AppModel: ObservableObject {
             debugBuild: debugBuild,
             secure: secure
         )
+        controller.setBankLinkAvailability(
+            configured: false,
+            unavailableLabel: "Not available on iOS yet",
+            note: "Plaid Link is not in the iOS app yet. Adding it needs a Mac."
+        )
         let bridge = BridgeObserver()
         observer = bridge
         bridge.handler = { [weak self] in

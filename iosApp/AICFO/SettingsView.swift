@@ -103,7 +103,13 @@ struct SettingsView: View {
                     Text("Read-only linking. Bank passwords are never stored.").font(Theme.body(14)).foregroundStyle(Theme.muted)
                     Text("Link tokens stay in the Keychain on this iPhone.").font(Theme.body(14)).foregroundStyle(Theme.muted)
                     Text("Logs redact tokens, passwords, and card numbers.").font(Theme.body(14)).foregroundStyle(Theme.muted)
-                    Text(settings.banksLinked ? "Sample institutions are linked." : "No institutions linked.")
+                    Text("Plaid Link is not in the iOS app yet. Adding it needs a Mac.")
+                        .font(Theme.body(14)).foregroundStyle(Theme.muted)
+                    Text(settings.banksLinked
+                         ? (settings.sampleLink
+                            ? "Maya sample accounts are linked. This is debug data, not your bank."
+                            : "A read-only bank is linked.")
+                         : "No institutions linked.")
                         .font(Theme.body(14)).foregroundStyle(Theme.muted)
                 }
                 .padding(16)
@@ -125,6 +131,9 @@ struct SettingsView: View {
                         SecondaryButton(label: "Replay onboarding") { model.controller.debugReplayOnboarding() }
                         SecondaryButton(label: "Simulate bank reconnect") { model.controller.debugSimulateNeedsReauth() }
                         SecondaryButton(label: "Simulate sync failure") { model.controller.debugSimulateSyncFailure() }
+                        SecondaryButton(label: "Link Maya sample") { _ = model.controller.connectReadOnlyStub() }
+                        Text("Link Maya sample uses October demo accounts. It is not your bank.")
+                            .font(Theme.body(13)).foregroundStyle(Theme.muted)
                     }
                     .padding(16)
                     .softCard()

@@ -38,7 +38,18 @@ import com.aicfo.shared.sync.SyncTrigger
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AccountsScreen(controller: AiCfoController, tick: Int) {
+fun AccountsScreen(
+    controller: AiCfoController,
+    tick: Int,
+    linking: Boolean = false,
+    onConnect: () -> Unit = { controller.reportLinkError("Plaid is not configured") },
+    onSyncAction: (String) -> Unit = { code ->
+        when (code) {
+            SyncCode.NEEDS_REAUTH -> controller.reconnectBank()
+            SyncCode.FAILED -> controller.refreshAccounts(SyncTrigger.Manual)
+        }
+    },
+) {
     val freshnessTick = rememberFreshnessTick()
     val model = remember(tick, freshnessTick) { controller.accounts() }
     PullToRefreshBox(
@@ -65,13 +76,12 @@ fun AccountsScreen(controller: AiCfoController, tick: Int) {
                     label = model.freshnessLabel,
                     action = model.syncActionLabel,
                     code = model.syncCode,
-                    onAction = {
-                        when (model.syncCode) {
-                            SyncCode.NEEDS_REAUTH -> controller.reconnectBank()
-                            SyncCode.FAILED -> controller.refreshAccounts(SyncTrigger.Manual)
-                        }
-                    },
+                    onAction = { onSyncAction(model.syncCode) },
                 )
+            }
+            if (model.linked && model.linkError.isNotEmpty()) {
+                Spacer(Modifier.height(8.dp))
+                Text(model.linkError, color = AiColors.Danger, fontSize = 14.sp, lineHeight = 20.sp)
             }
             Spacer(Modifier.height(14.dp))
             Row(
@@ -90,12 +100,16 @@ fun AccountsScreen(controller: AiCfoController, tick: Int) {
                     Text(model.emptyTitle, color = AiColors.Text, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
                     Spacer(Modifier.height(6.dp))
                     Text(model.emptyBody, color = AiColors.Muted, fontSize = 14.sp, lineHeight = 20.sp)
+                    if (model.linkNote.isNotEmpty()) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(model.linkNote, color = AiColors.Muted, fontSize = 14.sp, lineHeight = 20.sp)
+                    }
                     if (model.linkError.isNotEmpty()) {
                         Spacer(Modifier.height(10.dp))
                         Text(model.linkError, color = AiColors.Danger, fontSize = 14.sp, lineHeight = 20.sp)
                     }
                     Spacer(Modifier.height(14.dp))
-                    PrimaryButton(model.emptyCta) { controller.connectReadOnlyStub() }
+                    PrimaryButton(model.emptyCta, enabled = !linking, onClick = onConnect)
                 }
             }
         } else {

@@ -191,6 +191,7 @@ internal object AutomationTags {
     const val QA_REPLAY_ONBOARDING = "qa_replay_onboarding"
     const val QA_SIMULATE_RECONNECT = "qa_simulate_reconnect"
     const val QA_SIMULATE_FAILURE = "qa_simulate_failure"
+    const val QA_LINK_MAYA_SAMPLE = "qa_link_maya_sample"
     const val QA_RETURN_TO_TRIAL = "qa_return_to_trial"
     const val BANK_FRESHNESS = "bank_freshness"
     const val BANK_FRESHNESS_ACTION = "bank_freshness_action"
