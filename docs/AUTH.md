@@ -105,6 +105,10 @@ Native UI only (Jetpack Compose and SwiftUI). Shared code does not draw these. A
 
 Soft-card tokens stay the app tokens: background `#F4F5F7`, white cards, Inter on Android, accent `#635BFF`, violet **F** mark.
 
+## Android captures
+
+`docs/design/auth/email-login/` holds three Compose draws of this login: email entry before a session, the code screen after a valid address, and the PIN lock on a cold start with a saved session. They are not device screenshots. The emulator guest did not boot, so there is no running-UI capture. iOS was not compiled.
+
 ## Older phone boards
 
 `docs/design/auth/MARK-HANDOFF.md` and the PNGs under `docs/design/auth/implemented/` describe the previous phone + OTP boards. They are not the current login. Do not build SMS from them.
