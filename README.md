@@ -52,9 +52,10 @@ Floating pill nav: **Home · Moves · Accounts · Settings**.
 
 | Screen | Behavior |
 | --- | --- |
-| Onboarding | Welcome → actions, not charts → read-only connect. The 30-day Pro trial step comes after phone OTP and unlock setup. See `docs/AUTH.md`. |
-| Phone + OTP | Account login. US numbers, 6-digit code. Session is stored only after a correct code. |
-| Email | Monthly savings report. Skippable. Not a login. |
+| Onboarding | Welcome → actions, not charts → read-only connect. The 30-day Pro trial step comes after email sign-in and unlock setup. See `docs/AUTH.md`. |
+| Email code | Account login for any inbox (Gmail, Outlook, Apple Mail, or others). A one-time code or a magic link proves the address. Entering the email alone does not start a session. |
+| Monthly report | The same address is saved for a future savings report. This build does not send that report, and the address is not a second login. |
+| Phone | Optional profile data. Not required to enter the app, and not the session. |
 | Unlock setup | Android PIN or biometrics. iOS Face ID / Touch ID or device passcode. |
 | Lock | Cold start while the account session is still stored. Biometrics or PIN / passcode. Not a new login. |
 | Home | Hello Maya, then a wealth strip (savings + net worth, runway in the foot), a hope line when Gympass is still open or cancelled, Needs · Wants · To save, and up to three priority moves. See all opens Moves. The first card is the top move. No charts, no chat. |
@@ -64,7 +65,7 @@ Floating pill nav: **Home · Moves · Accounts · Settings**.
 | Settings | Profile, Face ID / biometric toggle, Log out, notifications, privacy, disconnect. QA tools appear only in debug builds. |
 | Paywall | Hard stop when the trial is over. $9.99/month or $79/year. No forever-free plan. |
 
-Onboarding intro follows Sofia’s v1.1 boards (`OnboardingScreen` / `OnboardingView`): welcome, actions, then connect. **Connect securely** links the read-only Maya sample; **Skip for now** continues without linking. If the vault or link policy rejects a token, connect fails softly: nothing is marked linked, onboarding stays on the connect step, and the screen shows an error. Phone, OTP, the optional report email, and device-unlock setup come next (`docs/AUTH.md`). **Start free 30-day trial** then starts the clock. **Maybe later** finishes onboarding without a trial, so the hard paywall shows after unlock.
+Onboarding intro follows Sofia’s v1.1 boards (`OnboardingScreen` / `OnboardingView`): welcome, actions, then connect. **Connect securely** links the read-only Maya sample; **Skip for now** continues without linking. If the vault or link policy rejects a token, connect fails softly: nothing is marked linked, onboarding stays on the connect step, and the screen shows an error. Email sign-in, then device-unlock setup, come next (`docs/AUTH.md`). **Start free 30-day trial** then starts the clock. **Maybe later** finishes onboarding without a trial, so the hard paywall shows after unlock.
 
 The last main tab (Home, Moves, Accounts, Settings) is stored with the other local flags and restored after process death.
 
@@ -103,7 +104,7 @@ QA controls are in **Settings → QA · trial / paywall** only when `Qa.toolsEna
 
 In a debug build the paywall itself has **QA: return to trial**, which is the same as Restore trial. That row is not compiled into the release UI.
 
-The trial start, subscription flag, selected tab, move statuses, and bank sync metadata (`lastSyncedAt`, failure, reconnect) persist (Android `SharedPreferences`, iOS `UserDefaults`). Link tokens persist in the Keystore / Keychain and are never written into those prefs. The account session and PIN verifier persist in a separate secure store. The in-memory device-unlock flag resets when the process dies, so a signed-in cold start shows the lock again. Phone and OTP come back only after Log out, reinstall, or a cleared session. See `docs/AUTH.md` and `docs/SYNC.md`.
+The trial start, subscription flag, selected tab, move statuses, and bank sync metadata (`lastSyncedAt`, failure, reconnect) persist (Android `SharedPreferences`, iOS `UserDefaults`). Link tokens persist in the Keystore / Keychain and are never written into those prefs. The account session and PIN verifier persist in a separate secure store. The in-memory device-unlock flag resets when the process dies, so a signed-in cold start shows the lock again. The email field comes back only after Log out, reinstall, or a cleared session. See `docs/AUTH.md` and `docs/SYNC.md`.
 
 ## Security foundations
 
@@ -114,7 +115,7 @@ The trial start, subscription flag, selected tab, move statuses, and bank sync m
 - `TlsPolicy.spkiPins` is the certificate-pinning hook. The pin is a placeholder and must be replaced before a real API host is called. This scaffold makes no network calls and does not request `INTERNET`.
 - `SafeLog.redact` strips link tokens, `password=` / `token=` assignments, emails, and 13–19 digit numbers. The logger does not forward the original line.
 - Accounts render a Read-only badge. Stored account data is a mask (last four) plus a display balance — no full account numbers.
-- Device unlock gates a cold start while an account session exists. Biometrics and the PIN are not account login. Release builds always keep an unlock path (biometrics, Android PIN, or the iOS device passcode). Debug builds leave the lock off until the user opts in, so emulator QA is not stuck, and the phone screen can show **Debug skip**. Settings → **Lock now** shows the gate without reinstalling. Log out clears the account session.
+- Device unlock gates a cold start while an account session exists. Biometrics and the PIN are not account login. Release builds always keep an unlock path (biometrics, Android PIN, or the iOS device passcode). Debug builds leave the lock off until the user opts in, so emulator QA is not stuck. A debug build can accept code `000000` after a valid email is submitted; it does not send mail, and the email field alone does not sign anyone in. Release builds fail closed until a mail provider is configured (`email.local.properties.example`). Settings → **Lock now** shows the gate without reinstalling. Log out clears the account session only.
 
 ## Adaptive layout
 
@@ -224,7 +225,7 @@ iOS is not compiled in that workflow. Compiling the Swift app, or the Kotlin/Nat
 
 ## Tests
 
-`shared/src/commonTest` covers the 30-day cliff, the debug QA override, the release path that cannot force a trial or paywall, “no forever free”, Gympass $47 × 12 = $564, home ranking, cancel / keep, link-token policy, a failed connect that stays unlinked, tab restore, the debug/release unlock default, the auth gate (no session → phone, session + unlock needed → lock, logout clears the session), and log redaction.
+`shared/src/commonTest` covers the 30-day cliff, the debug QA override, the release path that cannot force a trial or paywall, “no forever free”, Gympass $47 × 12 = $564, home ranking, cancel / keep, link-token policy, a failed connect that stays unlinked, tab restore, the debug/release unlock default, the auth gate (no session → email, email alone does not sign in, a code or magic link does, session + unlock needed → lock, logout clears the session only), and log redaction.
 
 ```bash
 ./gradlew :shared:testDebugUnitTest

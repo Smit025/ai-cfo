@@ -1,6 +1,9 @@
 package com.aicfo.shared.auth
 
-/** US-first phone helpers. Account identity is E.164, not the display mask. */
+/**
+ * Optional profile phone. US display helpers only.
+ * The number is not an account session and is not required to enter the app.
+ */
 object PhoneNumbers {
     fun usDigits(raw: String): String = raw.filter { it.isDigit() }.take(10)
 
@@ -25,19 +28,9 @@ object PhoneNumbers {
         }
     }
 
-    /** OTP line: +1····1234 */
+    /** Profile line: +1····1234 */
     fun maskTight(e164: String): String = "+1····${e164.takeLast(4)}"
 
     /** Settings line: +1 ····1234 */
     fun maskSpaced(e164: String): String = "+1 ····${e164.takeLast(4)}"
-}
-
-object ReportEmail {
-    private val pattern = Regex("""^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$""")
-
-    fun accepts(raw: String): Boolean {
-        val value = raw.trim()
-        if (value.length > 120) return false
-        return pattern.matches(value)
-    }
 }

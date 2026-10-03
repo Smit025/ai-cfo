@@ -6,14 +6,14 @@ import com.aicfo.shared.presentation.Gate
  * Cold-start router.
  *
  * First launch (no session): onboarding intro (welcome, actions, connect) → AUTH
- * (phone, OTP, report email, unlock setup) → trial step → lock or paywall or main.
+ * (email, then a code or magic link, then unlock setup) → trial step → lock or paywall or main.
  *
- * Returning cold start: session is already stored, so phone/OTP is skipped.
+ * Returning cold start: session is already stored, so the email prompt is skipped.
  * Device unlock runs before the paywall. Logout, reinstall, or a cleared
- * secure record is what brings phone/OTP back.
+ * secure record is what brings the email prompt back.
  *
- * [authSetupComplete] stays false after OTP until report-email is decided and
- * an unlock path exists, so a kill during email or PIN setup resumes AUTH.
+ * [authSetupComplete] stays false after the address is verified until an unlock
+ * path exists, so a kill during PIN setup resumes AUTH.
  */
 object AppGate {
     fun resolve(

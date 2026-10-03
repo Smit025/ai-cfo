@@ -3,13 +3,13 @@ package com.aicfo.shared.domain
 import com.aicfo.shared.auth.AppGate
 import com.aicfo.shared.auth.AuthSession
 import com.aicfo.shared.auth.DeviceUnlockPrefs
+import com.aicfo.shared.auth.EmailAddress
+import com.aicfo.shared.auth.EmailAuthRepository
 import com.aicfo.shared.auth.PhoneNumbers
 import com.aicfo.shared.auth.PinSecret
-import com.aicfo.shared.auth.ReportEmail
 import com.aicfo.shared.auth.SecureKeys
-import com.aicfo.shared.auth.StubOtpAuthRepository
-import com.aicfo.shared.auth.UnconfiguredOtpAuthRepository
-import com.aicfo.shared.auth.OtpAuthRepository
+import com.aicfo.shared.auth.StubEmailAuthRepository
+import com.aicfo.shared.auth.UnconfiguredEmailAuthRepository
 import com.aicfo.shared.data.MayaStub
 import com.aicfo.shared.market.CopyKey
 import com.aicfo.shared.market.CopyResolver
@@ -69,9 +69,10 @@ class AiCfoController(
     private val localStrings: LocalStrings,
     private val debugBuild: Boolean,
     private val secure: SecureStore,
+    emailAuth: EmailAuthRepository? = null,
 ) {
-    private val otp: OtpAuthRepository =
-        if (debugBuild) StubOtpAuthRepository() else UnconfiguredOtpAuthRepository()
+    private val mail: EmailAuthRepository = emailAuth
+        ?: if (debugBuild) StubEmailAuthRepository() else UnconfiguredEmailAuthRepository()
 
     /**
      * US pack, shared English catalog, debug QA tools on.
@@ -156,11 +157,11 @@ class AiCfoController(
     private var onboardingStep: Int = 0
     private var deviceUnlocked: Boolean = false
     private var biometricHardware: Boolean = false
-    private var pendingPhone: String? = null
-    private var otpSentAtMs: Long = 0L
-    private var phoneError: String = ""
-    private var otpError: String = ""
+    private var pendingEmail: String? = null
+    private var codeSentAtMs: Long = 0L
     private var emailError: String = ""
+    private var codeError: String = ""
+    private var profilePhoneErrorText: String = ""
     private var pinError: String = ""
     private var selectedMoveId: String? = null
     private var tab: String = "HOME"
@@ -174,6 +175,11 @@ class AiCfoController(
     private var syncGeneration: Int = 0
 
     init {
+        if (!debugBuild && mail is StubEmailAuthRepository) {
+            throw IllegalArgumentException(
+                "Release builds cannot use the debug email code. Pass a real EmailAuthRepository or leave it unset.",
+            )
+        }
         load()
     }
 
@@ -196,40 +202,51 @@ class AiCfoController(
 
     fun hasSession(): Boolean = readSession() != null
 
-    fun sessionPhone(): String = readSession()?.phoneE164.orEmpty()
+    fun sessionEmail(): String = readSession()?.email.orEmpty()
 
     fun authStep(): String {
-        if (!hasSession()) return if (pendingPhone != null) AuthStep.OTP else AuthStep.PHONE
-        if (!emailDecided()) return AuthStep.EMAIL
+        if (!hasSession()) return if (pendingEmail != null) AuthStep.CODE else AuthStep.EMAIL
         if (!authSetupComplete()) return AuthStep.UNLOCK
         return AuthStep.DONE
     }
 
-    fun phoneError(): String = phoneError
-
-    fun otpError(): String = otpError
-
     fun emailError(): String = emailError
+
+    fun codeError(): String = codeError
+
+    fun emailSignInConfigured(): Boolean = mail.isConfigured()
+
+    /** Empty when this build can request a code or a link. */
+    fun emailSignInBlocker(): String =
+        if (mail.isConfigured()) "" else UnconfiguredEmailAuthRepository.NOT_CONFIGURED
 
     fun pinError(): String = pinError
 
-    fun maskedPhone(): String {
-        val phone = pendingPhone ?: readSession()?.phoneE164 ?: return ""
-        return PhoneNumbers.maskTight(phone)
+    fun maskedEmail(): String {
+        val email = pendingEmail ?: readSession()?.email ?: return ""
+        return EmailAddress.mask(email)
     }
 
     fun resendSeconds(): Int {
-        if (otpSentAtMs == 0L) return 0
-        val elapsed = ((clock.nowEpochMs() - otpSentAtMs) / 1000L).toInt()
+        if (codeSentAtMs == 0L) return 0
+        val elapsed = ((clock.nowEpochMs() - codeSentAtMs) / 1000L).toInt()
         return (RESEND_SEC - elapsed).coerceAtLeast(0)
     }
 
     fun reportEmail(): String = store.read(Keys.REPORT_EMAIL).orEmpty()
 
+    fun profilePhone(): String = store.read(Keys.PROFILE_PHONE).orEmpty()
+
+    fun profilePhoneError(): String = profilePhoneErrorText
+
     fun debugAuthTools(): Boolean = Qa.toolsEnabled(debugBuild)
 
-    /** Debug builds may show this on the phone screen. Empty in release. */
-    fun debugOtpCode(): String = if (debugBuild) StubOtpAuthRepository.DEBUG_CODE else ""
+    /**
+     * Debug builds show this after a code is requested. Empty in release.
+     * It does not sign the user in by itself.
+     */
+    fun debugSignInCode(): String =
+        if (debugBuild && mail is StubEmailAuthRepository) StubEmailAuthRepository.DEBUG_CODE else ""
 
     fun deviceUnlock(): DeviceUnlockPrefs = DeviceUnlockPrefs(
         biometricEnabled = biometricEnabled(),
@@ -294,7 +311,7 @@ class AiCfoController(
 
     /**
      * Primary button. Connect securely links the read-only sample, then finishes the intro.
-     * The trial step is the primary again after phone OTP and unlock setup.
+     * The trial step is the primary again after email sign-in and unlock setup.
      */
     fun primaryOnboarding() {
         if (onboardingStep == 2 && !introComplete() && !connectReadOnlyStub()) return
@@ -481,11 +498,13 @@ class AiCfoController(
         val ent = entitlement()
         val profile = MayaStub.profile
         val session = readSession()
-        val mask = session?.let { PhoneNumbers.maskSpaced(it.phoneE164) }.orEmpty()
+        val profileLine = profilePhone().let { phone ->
+            if (PhoneNumbers.isValidUs(phone)) PhoneNumbers.maskSpaced(phone) else ""
+        }
         return SettingsModel(
             name = profile.fullName,
             meta = if (session != null) {
-                "$mask · Signed in"
+                "${session.email} · Signed in"
             } else {
                 "${profile.occupation} · ${profile.city}, ${profile.region}"
             },
@@ -500,7 +519,7 @@ class AiCfoController(
             phase = ent.phase,
             qaEnabled = Qa.toolsEnabled(debugBuild),
             signedIn = session != null,
-            phoneMask = mask,
+            phoneMask = profileLine,
             deviceLockReady = biometricEnabled() || pinConfigured() || passcodeConfigured(),
         )
     }
@@ -526,7 +545,7 @@ class AiCfoController(
             kicker = "WELCOME BACK",
             secondaryCta = if (bio) "Use PIN" else "",
             methodTitle = if (bio) "Biometrics" else "PIN",
-            methodDetail = "Device unlock only · account stays via phone+OTP",
+            methodDetail = "Device unlock only. Your account stays signed in.",
             pinSet = pin,
             mustCreatePin = create,
             preferPin = !bio && pin,
@@ -642,91 +661,106 @@ class AiCfoController(
         publish()
     }
 
-    fun submitPhone(raw: String): Boolean {
-        val e164 = PhoneNumbers.toE164(raw)
-        if (!PhoneNumbers.isValidUs(e164)) {
-            phoneError = "Enter a valid US mobile number."
+    /**
+     * Asks the sender for a code or a link. Does not write a session.
+     * Gmail, Outlook, Apple Mail, and any other accepted address take the same path.
+     */
+    fun submitEmail(raw: String): Boolean {
+        val email = EmailAddress.normalize(raw)
+        if (email == null) {
+            emailError = "Enter a valid email address."
             publish()
             return false
         }
-        return sendCode(e164)
+        return sendChallenge(email, onForm = true)
     }
 
-    fun resendOtp(): Boolean {
-        val phone = pendingPhone ?: return false
+    fun resendSignInCode(): Boolean {
+        val email = pendingEmail ?: return false
         if (resendSeconds() > 0) return false
-        return sendCode(phone)
+        return sendChallenge(email, onForm = false)
     }
 
-    fun changePhoneNumber() {
-        pendingPhone = null
-        otpError = ""
-        otpSentAtMs = 0L
+    fun changeEmail() {
+        pendingEmail = null
+        codeError = ""
+        codeSentAtMs = 0L
         publish()
     }
 
-    fun verifyOtp(code: String): Boolean {
-        val phone = pendingPhone
-        if (phone == null) {
-            otpError = "Request a new code."
+    /** Six-digit code from the mailbox. Either this or [verifyMagicLink] is enough. */
+    fun verifySignInCode(code: String): Boolean {
+        val email = pendingEmail
+        if (email == null) {
+            codeError = "Request a new code."
             publish()
             return false
         }
         val digits = code.filter { it.isDigit() }
         if (digits.length != 6) {
-            otpError = "Enter the 6-digit code."
+            codeError = "Enter the 6-digit code."
             publish()
             return false
         }
-        val result = otp.verifyCode(phone, digits)
+        val result = mail.verifyCode(email, digits)
         if (!result.ok) {
-            otpError = result.message.ifBlank { "That code is wrong or expired." }
+            codeError = result.message.ifBlank { "That code is wrong or expired." }
             publish()
             return false
         }
-        if (!writeSession(phone)) {
-            otpError = "Couldn't save this sign-in on the device."
+        return finishSignIn(email)
+    }
+
+    /**
+     * Magic-link token for the address that just requested a challenge.
+     * A link is enough on its own; the code does not also have to be entered.
+     */
+    fun verifyMagicLink(token: String): Boolean {
+        val email = pendingEmail
+        if (email == null) {
+            codeError = "Request a new link."
             publish()
             return false
         }
-        pendingPhone = null
-        otpError = ""
-        phoneError = ""
+        val trimmed = token.trim()
+        if (trimmed.isEmpty() || trimmed.length > 200) {
+            codeError = "That link is wrong or expired."
+            publish()
+            return false
+        }
+        val result = mail.verifyMagicLink(email, trimmed)
+        if (!result.ok) {
+            codeError = result.message.ifBlank { "That link is wrong or expired." }
+            publish()
+            return false
+        }
+        return finishSignIn(email)
+    }
+
+    /**
+     * Optional profile number. Blank clears it. Never creates a session and is not required to enter the app.
+     */
+    fun saveProfilePhone(raw: String): Boolean {
+        val digits = PhoneNumbers.usDigits(raw)
+        if (digits.isEmpty()) {
+            store.remove(Keys.PROFILE_PHONE)
+            profilePhoneErrorText = ""
+            publish()
+            return true
+        }
+        val e164 = PhoneNumbers.toE164(digits)
+        if (!PhoneNumbers.isValidUs(e164)) {
+            profilePhoneErrorText = "Enter a valid US mobile number, or leave it blank."
+            publish()
+            return false
+        }
+        store.write(Keys.PROFILE_PHONE, e164)
+        profilePhoneErrorText = ""
         publish()
         return true
     }
 
-    /** Debug-only. Skips phone + OTP and persists a session. Email and unlock setup still follow. */
-    fun debugSkipPhone() {
-        if (!Qa.toolsEnabled(debugBuild)) return
-        if (!writeSession("+15555550100")) return
-        pendingPhone = null
-        phoneError = ""
-        otpError = ""
-        publish()
-    }
-
-    fun saveReportEmail(raw: String): Boolean {
-        val email = raw.trim()
-        if (!ReportEmail.accepts(email)) {
-            emailError = "Enter a valid email."
-            publish()
-            return false
-        }
-        store.write(Keys.REPORT_EMAIL, email)
-        store.write(Keys.EMAIL_DECIDED, "true")
-        emailError = ""
-        publish()
-        return true
-    }
-
-    fun skipReportEmail() {
-        store.write(Keys.EMAIL_DECIDED, "true")
-        emailError = ""
-        publish()
-    }
-
-    /** First-run: user turned biometrics on. Does not replace phone + OTP. */
+    /** First-run: user turned biometrics on. Does not replace email sign-in. */
     fun enableBiometricUnlock(): Boolean {
         store.write(Keys.BIOMETRIC, "true")
         finishUnlockSetup()
@@ -785,29 +819,25 @@ class AiCfoController(
         finishUnlockSetup()
     }
 
-    /** Clears the account session. Next cold start is phone + OTP. Link tokens stay until disconnect. */
+    /**
+     * Clears the account session only. The device PIN, biometrics, profile phone,
+     * report address, link tokens, and trial clock stay.
+     */
     fun logOut() {
         secure.remove(SecureKeys.SESSION)
-        secure.remove(SecureKeys.PIN)
-        store.remove(Keys.PIN_SET)
-        store.remove(Keys.AUTH_SETUP)
-        store.remove(Keys.EMAIL_DECIDED)
-        store.remove(Keys.REPORT_EMAIL)
-        store.remove(Keys.PASSCODE)
-        store.remove(Keys.BIOMETRIC)
-        pendingPhone = null
+        pendingEmail = null
+        codeSentAtMs = 0L
         deviceUnlocked = false
-        phoneError = ""
-        otpError = ""
         emailError = ""
+        codeError = ""
         pinError = ""
         publish()
     }
 
-    /** Test helper. Writes a session and marks email + unlock setup done for this process. */
-    internal fun testingSeedSession(phone: String = "+15555551234") {
-        if (!writeSession(phone)) return
-        store.write(Keys.EMAIL_DECIDED, "true")
+    /** Test helper. Writes a verified session and marks unlock setup done for this process. */
+    internal fun testingSeedSession(email: String = "maya@studio.example") {
+        val normalized = EmailAddress.normalize(email) ?: return
+        if (!writeSession(normalized)) return
         store.write(Keys.AUTH_SETUP, "true")
         deviceUnlocked = true
         if (introComplete() && !onboardingComplete()) {
@@ -908,29 +938,48 @@ class AiCfoController(
         publish()
     }
 
-    private fun sendCode(e164: String): Boolean {
-        val result = otp.requestCode(e164)
+    private fun sendChallenge(email: String, onForm: Boolean): Boolean {
+        val result = mail.requestChallenge(email)
         if (!result.ok) {
-            phoneError = result.message.ifBlank { "Couldn't send a code." }
+            val message = result.message.ifBlank { "Couldn't send a code." }
+            if (onForm) emailError = message else codeError = message
             publish()
             return false
         }
-        pendingPhone = e164
-        otpSentAtMs = clock.nowEpochMs()
-        phoneError = ""
-        otpError = ""
+        pendingEmail = email
+        codeSentAtMs = clock.nowEpochMs()
+        emailError = ""
+        codeError = ""
         publish()
         return true
     }
 
-    private fun writeSession(phone: String): Boolean {
+    private fun finishSignIn(email: String): Boolean {
+        if (!writeSession(email)) {
+            codeError = "Couldn't save this sign-in on the device."
+            publish()
+            return false
+        }
+        pendingEmail = null
+        codeSentAtMs = 0L
+        codeError = ""
+        emailError = ""
+        publish()
+        return true
+    }
+
+    private fun writeSession(email: String): Boolean {
         val issued = clock.nowEpochMs()
         val session = AuthSession(
-            phoneE164 = phone,
+            email = email,
             issuedAtMs = issued,
-            token = "sess_${issued}_${phone.takeLast(4)}",
+            token = "sess_$issued",
         )
-        return secure.put(SecureKeys.SESSION, session.encode())
+        if (!secure.put(SecureKeys.SESSION, session.encode())) return false
+        store.write(Keys.REPORT_EMAIL, email)
+        store.write(Keys.EMAIL_DECIDED, "true")
+        if (authSetupComplete()) deviceUnlocked = true
+        return true
     }
 
     private fun readSession(): AuthSession? =
@@ -1144,6 +1193,7 @@ private object Keys {
     const val AUTH_SETUP = "auth_setup_complete"
     const val EMAIL_DECIDED = "report_email_decided"
     const val REPORT_EMAIL = "report_email"
+    const val PROFILE_PHONE = "profile_phone"
     const val PIN_SET = "device_pin_set"
     const val PASSCODE = "passcode_fallback"
     const val STEP = "onboarding_step"

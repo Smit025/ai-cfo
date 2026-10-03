@@ -46,6 +46,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -54,7 +55,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
 import com.aicfo.app.theme.AiColors
-import com.aicfo.shared.auth.PhoneNumbers
 import com.aicfo.shared.domain.AiCfoController
 import com.aicfo.shared.presentation.AuthStep
 import kotlinx.coroutines.delay
@@ -79,201 +79,32 @@ fun AuthFlowScreen(controller: AiCfoController, tick: Int) {
             BrandHeader()
             Spacer(Modifier.height(28.dp))
             when (step) {
-                AuthStep.OTP -> OtpStep(controller, tick)
-                AuthStep.EMAIL -> EmailStep(controller, tick)
+                AuthStep.CODE -> CodeStep(controller, tick)
                 AuthStep.UNLOCK -> PinSetupStep(controller, tick)
-                else -> PhoneStep(controller, tick)
+                else -> EmailSignInStep(controller, tick)
             }
         }
     }
 }
 
 @Composable
-private fun ColumnScope.PhoneStep(controller: AiCfoController, tick: Int) {
-    var digits by remember { mutableStateOf("") }
-    val error = remember(tick) { controller.phoneError() }
-    val debug = remember(tick) { controller.debugAuthTools() }
-    Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-        Text("What's your number?", color = AiColors.Text, fontWeight = FontWeight.Bold, fontSize = 32.sp, lineHeight = 38.sp)
-        Spacer(Modifier.height(8.dp))
-        Text(
-            "We'll text a one-time code. No password to remember.",
-            color = AiColors.Muted,
-            fontSize = 16.sp,
-            lineHeight = 23.sp,
-        )
-        Spacer(Modifier.height(22.dp))
-        Text("Mobile number", color = AiColors.Muted, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-        Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(
-                Modifier
-                    .height(56.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(Color.White)
-                    .padding(horizontal = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("🇺🇸", fontSize = 18.sp)
-                Spacer(Modifier.width(8.dp))
-                Text("+1", color = AiColors.Text, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                Spacer(Modifier.width(4.dp))
-                Text("▾", color = AiColors.Muted, fontSize = 12.sp)
-            }
-            Box(
-                Modifier
-                    .weight(1f)
-                    .height(56.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(Color.White)
-                    .padding(horizontal = 16.dp),
-                contentAlignment = Alignment.CenterStart,
-            ) {
-                if (digits.isEmpty()) {
-                    Text("(555) 000-0000", color = Color(0xFFC5CAD6), fontSize = 16.sp)
-                }
-                BasicTextField(
-                    value = PhoneNumbers.formatNational(digits),
-                    onValueChange = { digits = PhoneNumbers.usDigits(it) },
-                    textStyle = TextStyle(color = AiColors.Text, fontSize = 16.sp, fontWeight = FontWeight.Medium),
-                    singleLine = true,
-                    cursorBrush = SolidColor(AiColors.Accent),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        }
-        if (error.isNotEmpty()) {
-            Spacer(Modifier.height(8.dp))
-            Text(error, color = AiColors.Danger, fontSize = 13.sp, lineHeight = 18.sp)
-        }
-        Spacer(Modifier.height(14.dp))
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(18.dp))
-                .background(Lavender)
-                .padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(Icons.Outlined.VerifiedUser, contentDescription = null, tint = AiColors.Accent, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(10.dp))
-            Text(
-                "We'll text a code — no password. US numbers first.",
-                color = AiColors.Accent,
-                fontSize = 14.sp,
-                lineHeight = 20.sp,
-                fontWeight = FontWeight.Medium,
-            )
-        }
-    }
-    Spacer(Modifier.height(12.dp))
-    PrimaryButton("Continue", enabled = digits.length == 10) { controller.submitPhone(digits) }
-    if (debug) {
-        Text(
-            "Debug skip",
-            color = AiColors.Muted,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .clickable { controller.debugSkipPhone() }
-                .padding(vertical = 10.dp),
-        )
-    }
-}
-
-@Composable
-private fun ColumnScope.OtpStep(controller: AiCfoController, tick: Int) {
-    var code by remember { mutableStateOf("") }
-    var pulse by remember { mutableIntStateOf(0) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(1000)
-            pulse += 1
-        }
-    }
-    val sentTo = remember(tick) { controller.maskedPhone() }
-    val error = remember(tick) { controller.otpError() }
-    val seconds = remember(tick, pulse) { controller.resendSeconds() }
-    val debugCode = remember(tick) { controller.debugOtpCode() }
-    Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-        Text("Enter the code", color = AiColors.Text, fontWeight = FontWeight.Bold, fontSize = 32.sp)
-        Spacer(Modifier.height(8.dp))
-        Text("Sent to $sentTo", color = AiColors.Muted, fontSize = 16.sp)
-        Spacer(Modifier.height(22.dp))
-        Box(Modifier.fillMaxWidth()) {
-            OtpBoxes(code)
-            BasicTextField(
-                value = code,
-                onValueChange = { code = it.filter { ch -> ch.isDigit() }.take(6) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                modifier = Modifier.matchParentSize(),
-                textStyle = TextStyle(color = Color.Transparent),
-                cursorBrush = SolidColor(Color.Transparent),
-            )
-        }
-        if (error.isNotEmpty()) {
-            Spacer(Modifier.height(10.dp))
-            Text(error, color = AiColors.Danger, fontSize = 13.sp)
-        }
-        Spacer(Modifier.height(14.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            if (seconds > 0) {
-                Text(resendLabel(seconds), color = AiColors.Muted, fontSize = 14.sp)
-            } else {
-                Text(
-                    "Resend code",
-                    color = AiColors.Accent,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.clickable { controller.resendOtp() },
-                )
-            }
-            Text(
-                "Change number",
-                color = AiColors.Accent,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.clickable { controller.changePhoneNumber() },
-            )
-        }
-        if (debugCode.isNotEmpty()) {
-            Spacer(Modifier.height(10.dp))
-            Text(
-                "Fill debug code",
-                color = AiColors.Muted,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.clickable { code = debugCode },
-            )
-        }
-    }
-    Spacer(Modifier.height(12.dp))
-    PrimaryButton("Verify", enabled = code.length == 6) { controller.verifyOtp(code) }
-}
-
-@Composable
-private fun ColumnScope.EmailStep(controller: AiCfoController, tick: Int) {
+private fun ColumnScope.EmailSignInStep(controller: AiCfoController, tick: Int) {
     var email by remember { mutableStateOf("") }
     val error = remember(tick) { controller.emailError() }
+    val blocker = remember(tick) { controller.emailSignInBlocker() }
+    val debugCode = remember(tick) { controller.debugSignInCode() }
+    val configured = blocker.isEmpty()
     Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-        Text(
-            "Where should we send your wins?",
-            color = AiColors.Text,
-            fontWeight = FontWeight.Bold,
-            fontSize = 32.sp,
-            lineHeight = 38.sp,
-        )
+        Text("What's your email?", color = AiColors.Text, fontWeight = FontWeight.Bold, fontSize = 32.sp, lineHeight = 38.sp)
         Spacer(Modifier.height(8.dp))
         Text(
-            "Monthly email: how much you saved this month — calm summary, not spam.",
+            "We'll send a one-time code. Gmail, Outlook, Apple Mail, or any other inbox.",
             color = AiColors.Muted,
             fontSize = 16.sp,
             lineHeight = 23.sp,
         )
         Spacer(Modifier.height(22.dp))
-        Text("Email for reports", color = AiColors.Muted, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+        Text("Email", color = AiColors.Muted, fontSize = 13.sp, fontWeight = FontWeight.Medium)
         Spacer(Modifier.height(8.dp))
         Row(
             Modifier
@@ -297,41 +128,135 @@ private fun ColumnScope.EmailStep(controller: AiCfoController, tick: Int) {
                     singleLine = true,
                     cursorBrush = SolidColor(AiColors.Accent),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag(AutomationTags.AUTH_EMAIL),
                 )
             }
         }
         if (error.isNotEmpty()) {
             Spacer(Modifier.height(8.dp))
+            Text(error, color = AiColors.Danger, fontSize = 13.sp, lineHeight = 18.sp)
+        }
+        Spacer(Modifier.height(14.dp))
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(18.dp))
+                .background(if (configured) Lavender else Color(0xFFFEF2F2))
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Outlined.VerifiedUser,
+                contentDescription = null,
+                tint = if (configured) AiColors.Accent else AiColors.Danger,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                if (configured) {
+                    "No password. The same address can be used later for a monthly savings report. We don't send that email."
+                } else {
+                    blocker
+                },
+                color = if (configured) AiColors.Accent else AiColors.Danger,
+                fontSize = 14.sp,
+                lineHeight = 20.sp,
+                fontWeight = FontWeight.Medium,
+            )
+        }
+        if (debugCode.isNotEmpty()) {
+            Spacer(Modifier.height(10.dp))
+            Text(
+                "This debug build does not send mail. After you continue, the code is $debugCode.",
+                color = AiColors.Muted,
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
+            )
+        }
+    }
+    Spacer(Modifier.height(12.dp))
+    PrimaryButton("Email me a code", enabled = configured && email.isNotBlank()) {
+        controller.submitEmail(email)
+    }
+}
+
+@Composable
+private fun ColumnScope.CodeStep(controller: AiCfoController, tick: Int) {
+    var code by remember { mutableStateOf("") }
+    var pulse by remember { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(1000)
+            pulse += 1
+        }
+    }
+    val sentTo = remember(tick) { controller.maskedEmail() }
+    val error = remember(tick) { controller.codeError() }
+    val seconds = remember(tick, pulse) { controller.resendSeconds() }
+    val debugCode = remember(tick) { controller.debugSignInCode() }
+    Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+        Text("Enter the code", color = AiColors.Text, fontWeight = FontWeight.Bold, fontSize = 32.sp)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            if (debugCode.isNotEmpty()) "No email was sent. Debug code for $sentTo." else "Sent to $sentTo",
+            color = AiColors.Muted,
+            fontSize = 16.sp,
+            lineHeight = 22.sp,
+        )
+        Spacer(Modifier.height(22.dp))
+        Box(Modifier.fillMaxWidth()) {
+            OtpBoxes(code)
+            BasicTextField(
+                value = code,
+                onValueChange = { code = it.filter { ch -> ch.isDigit() }.take(6) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                modifier = Modifier
+                    .matchParentSize()
+                    .testTag(AutomationTags.AUTH_CODE),
+                textStyle = TextStyle(color = Color.Transparent),
+                cursorBrush = SolidColor(Color.Transparent),
+            )
+        }
+        if (error.isNotEmpty()) {
+            Spacer(Modifier.height(10.dp))
             Text(error, color = AiColors.Danger, fontSize = 13.sp)
         }
         Spacer(Modifier.height(14.dp))
-        Column(Modifier.fillMaxWidth().softCard(radius = 22.dp).padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(8.dp).clip(CircleShape).background(AiColors.Success))
-                Spacer(Modifier.width(8.dp))
-                Text("Monthly savings report", color = AiColors.Text, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            if (seconds > 0) {
+                Text(resendLabel(seconds), color = AiColors.Muted, fontSize = 14.sp)
+            } else {
+                Text(
+                    "Resend code",
+                    color = AiColors.Accent,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.clickable { controller.resendSignInCode() },
+                )
             }
-            Spacer(Modifier.height(6.dp))
             Text(
-                "One note each month on moves completed and dollars kept — not a login method.",
-                color = AiColors.Muted,
+                "Change email",
+                color = AiColors.Accent,
                 fontSize = 14.sp,
-                lineHeight = 20.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.clickable { controller.changeEmail() },
             )
         }
-        Spacer(Modifier.height(14.dp))
-        Text(
-            "Account login stays phone + OTP. Email is only for reports.",
-            color = AiColors.Muted,
-            fontSize = 13.sp,
-            lineHeight = 18.sp,
-        )
+        if (debugCode.isNotEmpty()) {
+            Spacer(Modifier.height(10.dp))
+            Text(
+                "Fill debug code",
+                color = AiColors.Muted,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.clickable { code = debugCode },
+            )
+        }
     }
     Spacer(Modifier.height(12.dp))
-    PrimaryButton("Continue", enabled = email.isNotBlank()) { controller.saveReportEmail(email) }
-    Spacer(Modifier.height(10.dp))
-    SecondaryButton("Skip for now") { controller.skipReportEmail() }
+    PrimaryButton("Verify", enabled = code.length == 6) { controller.verifySignInCode(code) }
 }
 
 @Composable
@@ -356,7 +281,7 @@ private fun ColumnScope.PinSetupStep(controller: AiCfoController, tick: Int) {
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            "Unlocks the app on this phone. Not your account password — login stays phone + OTP.",
+            "Unlocks the app on this phone. Not your account login — that stays the email code.",
             color = AiColors.Muted,
             fontSize = 15.sp,
             lineHeight = 22.sp,

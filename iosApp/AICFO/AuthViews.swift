@@ -2,6 +2,8 @@ import Combine
 import SwiftUI
 import Shared
 
+/// Email + code sign-in. iOS shares the session model. This file does not send mail,
+/// and a Mac build is required before this screen can be run.
 struct AuthFlowView: View {
     @EnvironmentObject private var model: AppModel
 
@@ -13,14 +15,12 @@ struct AuthFlowView: View {
                 .padding(.top, 8)
                 .padding(.bottom, 28)
             switch step {
-            case "OTP":
-                OtpStep()
-            case "EMAIL":
-                EmailStep()
+            case "CODE":
+                CodeStep()
             case "UNLOCK":
                 FaceIdSetupStep()
             default:
-                PhoneStep()
+                EmailSignInStep()
             }
         }
         .padding(.horizontal, 22)
@@ -30,46 +30,43 @@ struct AuthFlowView: View {
     }
 }
 
-private struct PhoneStep: View {
+private struct EmailSignInStep: View {
     @EnvironmentObject private var model: AppModel
-    @State private var digits = ""
+    @State private var email = ""
 
     var body: some View {
-        let error = model.controller.phoneError()
+        let error = model.controller.emailError()
+        let blocker = model.controller.emailSignInBlocker()
+        let debugCode = model.controller.debugSignInCode()
+        let configured = blocker.isEmpty
         let _ = model.revision
         VStack(alignment: .leading, spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("What's your number?")
+                    Text("What's your email?")
                         .font(Theme.title(32))
                         .foregroundStyle(Theme.text)
-                    Text("We'll text a one-time code. No password to remember.")
+                    Text("We'll send a one-time code. Gmail, Outlook, Apple Mail, or any other inbox.")
                         .font(Theme.body(16))
                         .foregroundStyle(Theme.muted)
                         .padding(.top, 8)
-                    Text("Mobile number")
+                    Text("Email")
                         .font(Theme.body(13))
                         .foregroundStyle(Theme.muted)
                         .padding(.top, 22)
                     HStack(spacing: 10) {
-                        HStack(spacing: 8) {
-                            Text("🇺🇸")
-                            Text("+1").font(Theme.semi(16)).foregroundStyle(Theme.text)
-                            Text("▾").font(Theme.body(12)).foregroundStyle(Theme.muted)
-                        }
-                        .padding(.horizontal, 14)
-                        .frame(height: 56)
-                        .background(.white, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                        TextField("(555) 000-0000", text: Binding(
-                            get: { PhoneNumbers.shared.formatNational(nationalDigits: digits) },
-                            set: { digits = PhoneNumbers.shared.usDigits(raw: $0) }
-                        ))
-                        .keyboardType(.phonePad)
-                        .font(Theme.body(16))
-                        .padding(.horizontal, 16)
-                        .frame(height: 56)
-                        .background(.white, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        Image(systemName: "envelope")
+                            .foregroundStyle(Theme.muted)
+                        TextField("maya@studio.example", text: $email)
+                            .textInputAutocapitalization(.never)
+                            .keyboardType(.emailAddress)
+                            .textContentType(.emailAddress)
+                            .autocorrectionDisabled()
+                            .font(Theme.body(16))
                     }
+                    .padding(.horizontal, 16)
+                    .frame(height: 56)
+                    .background(.white, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                     .padding(.top, 8)
                     if !error.isEmpty {
                         Text(error)
@@ -79,40 +76,51 @@ private struct PhoneStep: View {
                     }
                     HStack(alignment: .top, spacing: 10) {
                         Image(systemName: "checkmark.shield")
-                            .foregroundStyle(Theme.accent)
-                        Text("We'll text a code — no password. US numbers first.")
+                            .foregroundStyle(configured ? Theme.accent : Theme.danger)
+                        Text(configured
+                             ? "No password. The same address can be used later for a monthly savings report. We don't send that email."
+                             : blocker)
                             .font(Theme.body(14))
-                            .foregroundStyle(Theme.accent)
+                            .foregroundStyle(configured ? Theme.accent : Theme.danger)
                     }
                     .padding(14)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(red: 231 / 255, green: 228 / 255, blue: 1), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .background(
+                        configured
+                            ? Color(red: 231 / 255, green: 228 / 255, blue: 1)
+                            : Color(red: 254 / 255, green: 242 / 255, blue: 242),
+                        in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    )
                     .padding(.top, 14)
+                    if !debugCode.isEmpty {
+                        Text("This debug build does not send mail. After you continue, the code is \(debugCode).")
+                            .font(Theme.body(13))
+                            .foregroundStyle(Theme.muted)
+                            .padding(.top, 10)
+                    }
                 }
             }
-            PrimaryButton(label: "Continue", enabled: digits.count == 10) {
-                _ = model.controller.submitPhone(raw: digits)
+            PrimaryButton(
+                label: "Email me a code",
+                enabled: configured && !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ) {
+                _ = model.controller.submitEmail(raw: email)
             }
             .padding(.top, 12)
-            if model.controller.debugAuthTools() {
-                Button("Debug skip") { model.controller.debugSkipPhone() }
-                    .font(Theme.semi(13))
-                    .foregroundStyle(Theme.muted)
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 8)
-            }
         }
     }
 }
 
-private struct OtpStep: View {
+private struct CodeStep: View {
     @EnvironmentObject private var model: AppModel
     @State private var code = ""
     @State private var pulse = 0
 
     var body: some View {
-        let error = model.controller.otpError()
+        let error = model.controller.codeError()
         let seconds = model.controller.resendSeconds()
+        let debugCode = model.controller.debugSignInCode()
+        let sentTo = model.controller.maskedEmail()
         let _ = model.revision
         let _ = pulse
         VStack(alignment: .leading, spacing: 0) {
@@ -121,7 +129,7 @@ private struct OtpStep: View {
                     Text("Enter the code")
                         .font(Theme.title(32))
                         .foregroundStyle(Theme.text)
-                    Text("Sent to \(model.controller.maskedPhone())")
+                    Text(debugCode.isEmpty ? "Sent to \(sentTo)" : "No email was sent. Debug code for \(sentTo).")
                         .font(Theme.body(16))
                         .foregroundStyle(Theme.muted)
                         .padding(.top, 8)
@@ -144,18 +152,18 @@ private struct OtpStep: View {
                         if seconds > 0 {
                             Text(resendLabel(seconds)).font(Theme.body(14)).foregroundStyle(Theme.muted)
                         } else {
-                            Button("Resend code") { _ = model.controller.resendOtp() }
+                            Button("Resend code") { _ = model.controller.resendSignInCode() }
                                 .font(Theme.semi(14))
                                 .foregroundStyle(Theme.accent)
                         }
                         Spacer()
-                        Button("Change number") { model.controller.changePhoneNumber() }
+                        Button("Change email") { model.controller.changeEmail() }
                             .font(Theme.semi(14))
                             .foregroundStyle(Theme.accent)
                     }
                     .padding(.top, 14)
-                    if !model.controller.debugOtpCode().isEmpty {
-                        Button("Fill debug code") { code = model.controller.debugOtpCode() }
+                    if !debugCode.isEmpty {
+                        Button("Fill debug code") { code = debugCode }
                             .font(Theme.semi(13))
                             .foregroundStyle(Theme.muted)
                             .padding(.top, 10)
@@ -163,77 +171,12 @@ private struct OtpStep: View {
                 }
             }
             PrimaryButton(label: "Verify", enabled: code.count == 6) {
-                _ = model.controller.verifyOtp(code: code)
+                _ = model.controller.verifySignInCode(code: code)
             }
             .padding(.top, 12)
         }
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
             pulse += 1
-        }
-    }
-}
-
-private struct EmailStep: View {
-    @EnvironmentObject private var model: AppModel
-    @State private var email = ""
-
-    var body: some View {
-        let error = model.controller.emailError()
-        let _ = model.revision
-        VStack(alignment: .leading, spacing: 0) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text("Where should we send\nyour wins?")
-                        .font(Theme.title(32))
-                        .foregroundStyle(Theme.text)
-                    Text("Monthly email: how much you saved this month — calm summary, not spam.")
-                        .font(Theme.body(16))
-                        .foregroundStyle(Theme.muted)
-                        .padding(.top, 8)
-                    Text("Email for reports")
-                        .font(Theme.body(13))
-                        .foregroundStyle(Theme.muted)
-                        .padding(.top, 22)
-                    HStack(spacing: 10) {
-                        Image(systemName: "envelope")
-                            .foregroundStyle(Theme.muted)
-                        TextField("maya@studio.example", text: $email)
-                            .textInputAutocapitalization(.never)
-                            .keyboardType(.emailAddress)
-                            .font(Theme.body(16))
-                    }
-                    .padding(.horizontal, 16)
-                    .frame(height: 56)
-                    .background(.white, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                    .padding(.top, 8)
-                    if !error.isEmpty {
-                        Text(error).font(Theme.body(13)).foregroundStyle(Theme.danger).padding(.top, 8)
-                    }
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack(spacing: 8) {
-                            Circle().fill(Theme.success).frame(width: 8, height: 8)
-                            Text("Monthly savings report").font(Theme.semi(16)).foregroundStyle(Theme.text)
-                        }
-                        Text("One note each month on moves completed and dollars kept — not a login method.")
-                            .font(Theme.body(14))
-                            .foregroundStyle(Theme.muted)
-                    }
-                    .padding(16)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .softCard(radius: 22)
-                    .padding(.top, 14)
-                    Text("Account login stays phone + OTP. Email is only for reports.")
-                        .font(Theme.body(13))
-                        .foregroundStyle(Theme.muted)
-                        .padding(.top, 14)
-                }
-            }
-            PrimaryButton(label: "Continue", enabled: !email.trimmingCharacters(in: .whitespaces).isEmpty) {
-                _ = model.controller.saveReportEmail(raw: email)
-            }
-            .padding(.top, 12)
-            SecondaryButton(label: "Skip for now") { model.controller.skipReportEmail() }
-                .padding(.top, 10)
         }
     }
 }
@@ -262,15 +205,15 @@ private struct FaceIdSetupStep: View {
                     .foregroundStyle(Theme.text)
                     .multilineTextAlignment(.center)
                     .padding(.top, 18)
-                Text("Protects this device only. Your account login is still phone + OTP — Face ID never signs you in.")
+                Text("Protects this device only. Your account login is the email code — Face ID never signs you in.")
                     .font(Theme.body(16))
                     .foregroundStyle(Theme.muted)
                     .multilineTextAlignment(.center)
                     .padding(.top, 8)
                 VStack(alignment: .leading, spacing: 0) {
-                    benefit("Cold starts stay fast", "Unlock → Home. No re-OTP while signed in.")
+                    benefit("Cold starts stay fast", "Unlock → Home. No email prompt while signed in.")
                     Divider().padding(.leading, 28)
-                    benefit("Device unlock, not account login", "Session already persisted after OTP.")
+                    benefit("Device unlock, not account login", "Session is already stored after the code or link.")
                     Divider().padding(.leading, 28)
                     benefit("Passcode fallback always on", "Release requires an unlock path — never empty.")
                 }

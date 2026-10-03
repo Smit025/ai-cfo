@@ -11,7 +11,9 @@ import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -22,6 +24,8 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
+import com.aicfo.shared.auth.StubEmailAuthRepository
+import com.aicfo.shared.auth.UnconfiguredEmailAuthRepository
 import com.aicfo.shared.domain.AiCfoController
 import com.aicfo.shared.domain.AppClock
 import com.aicfo.shared.domain.AppObserver
@@ -305,34 +309,44 @@ class AutomationSemanticsTest {
     }
 
     @Test
-    fun authScreensRenderThePhoneEmailPinAndColdUnlockBoards() {
+    fun authScreensRenderEmailCodePinAndColdUnlock() {
         val controller = debugController()
         repeat(8) {
             if (controller.gate() != Gate.ONBOARDING) return@repeat
             controller.primaryOnboarding()
         }
         assertEquals(Gate.AUTH, controller.gate())
-        assertEquals(AuthStep.PHONE, controller.authStep())
-        val tick = mutableStateOf(0)
+        assertEquals(AuthStep.EMAIL, controller.authStep())
         val showLock = mutableStateOf(false)
         rule.setContent {
             if (showLock.value) {
-                LockScreen(controller, tick.value) {}
+                RevisingLock(controller)
             } else {
-                AuthFlowScreen(controller, tick.value)
+                RevisingAuth(controller)
             }
         }
-        rule.onNodeWithText("What's your number?").assertIsDisplayed()
-        rule.onNodeWithText("We'll text a one-time code. No password to remember.").assertIsDisplayed()
-        rule.onNodeWithText("Continue").assertIsDisplayed()
+        rule.onNodeWithText("What's your email?").assertIsDisplayed()
+        rule.onNodeWithText("We'll send a one-time code. Gmail, Outlook, Apple Mail, or any other inbox.")
+            .assertIsDisplayed()
+        rule.onAllNodesWithText("Sign in with Google").assertCountEquals(0)
+        rule.onAllNodesWithText("What's your number?").assertCountEquals(0)
+        rule.onNodeWithText("Email me a code").assertIsNotEnabled()
 
-        controller.debugSkipPhone()
-        tick.value = 1
-        rule.onNodeWithText("Where should we send your wins?").assertIsDisplayed()
-        rule.onNodeWithText("Skip for now").assertIsDisplayed()
-
-        controller.skipReportEmail()
-        tick.value = 2
+        rule.onNodeWithTag(AutomationTags.AUTH_EMAIL).performTextInput("maya@gmail.com")
+        rule.onNodeWithText("Email me a code").performClick()
+        rule.runOnIdle {
+            assertFalse(controller.hasSession())
+            assertEquals(AuthStep.CODE, controller.authStep())
+        }
+        rule.onNodeWithText("Enter the code").assertIsDisplayed()
+        rule.onNodeWithText("No email was sent. Debug code for m•••@gmail.com.").assertIsDisplayed()
+        rule.onNodeWithText("Fill debug code").performClick()
+        rule.onNodeWithText("Verify").performClick()
+        rule.runOnIdle {
+            assertTrue(controller.hasSession())
+            assertEquals("maya@gmail.com", controller.sessionEmail())
+            assertEquals(AuthStep.UNLOCK, controller.authStep())
+        }
         rule.onNodeWithText("Create a 6-digit PIN").assertIsDisplayed()
         rule.onNodeWithText("Enter PIN · confirm next").assertIsDisplayed()
 
@@ -341,14 +355,12 @@ class AutomationSemanticsTest {
         controller.lockNow()
         assertEquals(Gate.LOCK, controller.gate())
         showLock.value = true
-        tick.value = 3
         rule.onNodeWithText("Enter your PIN").assertIsDisplayed()
-        rule.onNodeWithText("Device unlock only. Your account stays signed in with phone + OTP.")
+        rule.onNodeWithText("Device unlock only. Your account stays signed in.")
             .assertIsDisplayed()
 
         controller.setBiometricHardware(true)
         controller.setBiometricEnabled(true)
-        tick.value = 4
         rule.onNodeWithText("WELCOME BACK").assertIsDisplayed()
         rule.onNodeWithText("Unlock Finwise").assertIsDisplayed()
         rule.onNodeWithText("Unlock with biometrics").performScrollTo().assertIsDisplayed()
@@ -360,14 +372,38 @@ class AutomationSemanticsTest {
             controller.primaryOnboarding()
         }
         if (controller.gate() == Gate.AUTH) {
-            controller.debugSkipPhone()
-            controller.skipReportEmail()
+            assertTrue(controller.submitEmail("maya@studio.example"))
+            assertFalse(controller.hasSession())
+            assertTrue(controller.verifySignInCode(StubEmailAuthRepository.DEBUG_CODE))
             controller.debugCompleteUnlockSetup()
         }
         repeat(4) {
             if (controller.gate() != Gate.ONBOARDING) return@repeat
             controller.primaryOnboarding()
         }
+    }
+
+    @Test
+    fun unconfiguredEmailSignInFailsClosed() {
+        val controller = AiCfoController(
+            vault = MemoryTokenVault(),
+            store = MemoryLocalStore(),
+            clock = object : AppClock {
+                override fun nowEpochMs(): Long = 10L
+            },
+            market = Markets.unitedStates(),
+            localStrings = EmptyLocalStrings,
+            debugBuild = true,
+            secure = MemorySecureStore(),
+            emailAuth = UnconfiguredEmailAuthRepository(),
+        )
+        rule.setContent { AuthFlowScreen(controller, tick = 0) }
+        rule.onNodeWithText(UnconfiguredEmailAuthRepository.NOT_CONFIGURED).assertIsDisplayed()
+        rule.onNodeWithText("Email me a code").assertIsNotEnabled()
+        rule.onAllNodesWithText("Sign in with Google").assertCountEquals(0)
+        assertFalse(controller.submitEmail("maya@gmail.com"))
+        assertFalse(controller.hasSession())
+        assertEquals(AuthStep.EMAIL, controller.authStep())
     }
 
     private fun debugController(): AiCfoController = AiCfoController(
@@ -380,6 +416,36 @@ class AutomationSemanticsTest {
         localStrings = EmptyLocalStrings,
         debugBuild = true,
     )
+}
+
+@Composable
+private fun RevisingAuth(controller: AiCfoController) {
+    var tick by remember { mutableIntStateOf(0) }
+    DisposableEffect(controller) {
+        val observer = object : AppObserver {
+            override fun onChanged() {
+                tick += 1
+            }
+        }
+        controller.addObserver(observer)
+        onDispose { controller.removeObserver(observer) }
+    }
+    AuthFlowScreen(controller, tick)
+}
+
+@Composable
+private fun RevisingLock(controller: AiCfoController) {
+    var tick by remember { mutableIntStateOf(0) }
+    DisposableEffect(controller) {
+        val observer = object : AppObserver {
+            override fun onChanged() {
+                tick += 1
+            }
+        }
+        controller.addObserver(observer)
+        onDispose { controller.removeObserver(observer) }
+    }
+    LockScreen(controller, tick) {}
 }
 
 @Composable

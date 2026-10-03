@@ -1,6 +1,8 @@
 # Auth design references
 
-Session and unlock rules: [MARK-HANDOFF.md](MARK-HANDOFF.md). Product behavior is summarized in [docs/AUTH.md](../../AUTH.md).
+The current login is an email plus a one-time code or magic link ([docs/AUTH.md](../../AUTH.md)). The PNGs below are the previous phone + OTP boards. They were not recaptured for the email flow.
+
+Current session rules: [docs/AUTH.md](../../AUTH.md). [MARK-HANDOFF.md](MARK-HANDOFF.md) is the old phone spec.
 
 ## Implemented Android screens
 

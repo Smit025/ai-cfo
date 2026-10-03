@@ -15,3 +15,5 @@ iosApp/**/xcuserdata/
 iosApp/**/DerivedData/
 *.xcuserstate
 .externalNativeBuild/
+# Mail provider secrets. See email.local.properties.example. Never commit a key.
+email.local.properties

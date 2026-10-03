@@ -141,7 +141,7 @@ private fun PinUnlock(
     )
     Spacer(Modifier.height(8.dp))
     Text(
-        "Device unlock only. Your account stays signed in with phone + OTP.",
+        "Device unlock only. Your account stays signed in.",
         color = AiColors.Muted,
         fontSize = 15.sp,
         lineHeight = 22.sp,
