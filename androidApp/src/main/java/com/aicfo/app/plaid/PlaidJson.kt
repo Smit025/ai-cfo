@@ -90,10 +90,13 @@ internal object PlaidResponses {
         if (code == "ITEM_LOGIN_REQUIRED") return PlaidOutcome.LoginRequired
         val itemError = json.optJSONObject("item")?.optJSONObject("error") != null
         if (status in 200..299 && !itemError && !json.has("error_type")) return null
-        val display = json.optString("display_message").ifBlank {
-            when (code) {
-                "PRODUCT_NOT_READY" -> "Transactions aren't ready yet."
-                else -> "Couldn't refresh"
+        // optString turns a JSON null into the literal "null", which hid error_message on device.
+        val display = optionalText(json, "display_message").ifBlank {
+            optionalText(json, "error_message").ifBlank {
+                when (code) {
+                    "PRODUCT_NOT_READY" -> "Transactions aren't ready yet."
+                    else -> "Couldn't refresh"
+                }
             }
         }
         return PlaidOutcome.Failed(SafeLog.redact(display).take(160).ifBlank { "Couldn't refresh" })
@@ -180,9 +183,17 @@ internal object PlaidResponses {
     }
 
     private fun errorCode(json: JSONObject): String {
-        val top = json.optString("error_code")
+        val top = optionalText(json, "error_code")
         if (top.isNotBlank()) return top
-        return json.optJSONObject("item")?.optJSONObject("error")?.optString("error_code").orEmpty()
+        val nested = json.optJSONObject("item")?.optJSONObject("error") ?: return ""
+        return optionalText(nested, "error_code")
+    }
+
+    /** Missing and JSON null are blank. org.json optString maps null to the word "null". */
+    private fun optionalText(json: JSONObject, key: String): String {
+        if (!json.has(key) || json.isNull(key)) return ""
+        val value = json.optString(key).trim()
+        return if (value.equals("null", ignoreCase = true)) "" else value
     }
 }
 

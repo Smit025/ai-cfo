@@ -73,10 +73,11 @@ internal class PlaidLinker(
         }
     }
 
-    fun onExit(cancelled: Boolean, displayMessage: String?) {
+    fun onExit(cancelled: Boolean, displayMessage: String?, errorMessage: String? = null) {
         store.remove(INTENT)
         if (cancelled) return
-        val message = displayMessage?.let { SafeLog.redact(it).take(180) }?.ifBlank { null }
+        val message = listOf(displayMessage, errorMessage)
+            .firstNotNullOfOrNull { raw -> visibleLinkMessage(raw) }
             ?: "Couldn't link these accounts. Nothing was saved."
         controller.reportLinkError(message)
     }
@@ -153,6 +154,12 @@ internal class PlaidLinker(
         vault.read(PlaidBankSource.ACCESS_TOKEN_KEY)
     } catch (_: Throwable) {
         null
+    }
+
+    private fun visibleLinkMessage(raw: String?): String? {
+        val cleaned = raw?.let { SafeLog.redact(it).take(180).trim() }.orEmpty()
+        if (cleaned.isEmpty() || cleaned.equals("null", ignoreCase = true)) return null
+        return cleaned
     }
 
     private fun clientUserId(): String {

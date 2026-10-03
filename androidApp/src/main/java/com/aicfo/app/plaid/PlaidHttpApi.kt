@@ -27,7 +27,9 @@ internal class PlaidHttpApi(
                 if (token.isBlank()) PlaidOutcome.Failed("Couldn't open your bank.") else PlaidOutcome.Ok(token)
             }
             PlaidOutcome.LoginRequired -> PlaidOutcome.Failed("Couldn't open your bank.")
-            is PlaidOutcome.Failed -> response
+            is PlaidOutcome.Failed ->
+                if (response.message == "Couldn't refresh") PlaidOutcome.Failed("Couldn't open your bank.")
+                else response
         }
     }
 

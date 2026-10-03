@@ -334,7 +334,12 @@ class AiCfoController(
     }
 
     fun reportLinkError(message: String) {
-        linkError = SafeLog.redact(message).take(180).ifBlank { "Couldn't link these accounts. Nothing was saved." }
+        val cleaned = SafeLog.redact(message).take(180).trim()
+        linkError = if (cleaned.isEmpty() || cleaned.equals("null", ignoreCase = true)) {
+            "Couldn't link these accounts. Nothing was saved."
+        } else {
+            cleaned
+        }
         publish()
     }
 

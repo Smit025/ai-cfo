@@ -102,6 +102,15 @@ class PlaidReadOnlyTest {
         )
         assertTrue(leaked is PlaidOutcome.Failed)
         assertFalse((leaked as PlaidOutcome.Failed).message.contains("access-sandbox"))
+
+        val jsonNull = JSONObject("""{"display_message":null,"error_message":null}""")
+        assertEquals("null", jsonNull.optString("display_message"))
+        val hidden = PlaidResponses.failure(
+            400,
+            """{"error_code":"INVALID_FIELD","error_type":"INVALID_REQUEST","display_message":null,"error_message":"link token was refused"}""",
+        )
+        assertTrue(hidden is PlaidOutcome.Failed)
+        assertEquals("link token was refused", (hidden as PlaidOutcome.Failed).message)
     }
 
     @Test
@@ -266,6 +275,77 @@ class PlaidReadOnlyTest {
         assertEquals("—", app.home().savingsAmount)
         assertTrue(app.home().moveCount() > 0)
     }
+
+    @Test
+    fun nullDisplayMessageDoesNotOpenLinkOrShowTheWordNull() {
+        var opened: String? = "not-called"
+        val app = linkedApp(
+            PlaidTransport { url, _ ->
+                assertTrue(url.startsWith(PLAID_SANDBOX_HOST))
+                assertTrue(url.endsWith("/link/token/create"))
+                PlaidHttpResult(
+                    400,
+                    """{"error_type":"INVALID_REQUEST","error_code":"INVALID_FIELD","display_message":null,"error_message":"link token was refused"}""",
+                )
+            },
+        )
+        app.linker.opener = { opened = it }
+        app.linker.connect(advanceIntro = false)
+        assertEquals("not-called", opened)
+        assertEquals("link token was refused", app.controller.accounts().linkError)
+        assertFalse(app.controller.accounts().linked)
+    }
+
+    @Test
+    fun linkTokenOpensPlaidLink() {
+        var opened: String? = null
+        val app = linkedApp(
+            PlaidTransport { url, _ ->
+                assertTrue(url.endsWith("/link/token/create"))
+                PlaidHttpResult(200, """{"link_token":"link-sandbox-test-token"}""")
+            },
+        )
+        app.linker.opener = { opened = it }
+        app.linker.connect(advanceIntro = false)
+        assertEquals("link-sandbox-test-token", opened)
+        assertEquals("", app.controller.accounts().linkError)
+    }
+
+    @Test
+    fun exitWithANullDisplayMessageUsesTheErrorMessage() {
+        val app = linkedApp(PlaidTransport { _, _ -> error("no network") })
+        app.linker.onExit(cancelled = false, displayMessage = "null", errorMessage = "invalid link token")
+        assertEquals("invalid link token", app.controller.accounts().linkError)
+        app.linker.onExit(cancelled = true, displayMessage = null, errorMessage = "should stay")
+        assertEquals("invalid link token", app.controller.accounts().linkError)
+    }
+
+    private fun linkedApp(transport: PlaidTransport): LinkHarness {
+        val store = MemoryLocalStore()
+        val vault = MemoryTokenVault()
+        val api = PlaidHttpApi(PLAID_SANDBOX_HOST, "client-test", "secret-test", transport)
+        val direct = Executor { it.run() }
+        val source = PlaidBankSource(vault, store, api, direct) { it() }
+        val controller = AiCfoController(
+            vault,
+            store,
+            object : AppClock {
+                override fun nowEpochMs(): Long = 10L
+            },
+            Markets.unitedStates(),
+            EmptyLocalStrings,
+            true,
+            MemorySecureStore(),
+            source,
+        )
+        val linker = PlaidLinker(vault, store, api, source, controller, direct) { it() }
+        return LinkHarness(controller, linker)
+    }
+
+    private class LinkHarness(
+        val controller: AiCfoController,
+        val linker: PlaidLinker,
+    )
 
     private companion object {
         const val ACCESS: String = "access-sandbox-de3ce8ef-33f8-452c-a685-8671031fc0f6"

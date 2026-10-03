@@ -28,7 +28,11 @@ class MainActivity : FragmentActivity() {
             val active = linker ?: return@registerForActivityResult
             when (result) {
                 is LinkSuccess -> active.onPublicToken(result.publicToken)
-                is LinkExit -> active.onExit(result.error == null, result.error?.displayMessage)
+                is LinkExit -> active.onExit(
+                    result.error == null,
+                    result.error?.displayMessage,
+                    result.error?.errorMessage,
+                )
             }
         }
 
